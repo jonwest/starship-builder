@@ -1,0 +1,1655 @@
+<meta charset="utf-8">
+<title>Starship Prompt Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&family=Martian+Mono:wght@400;600;700&display=swap">
+<style>
+@font-face { font-family: "NF Symbols Subset"; src: url(data:font/woff2;base64,@FONT@) format("woff2"); unicode-range: U+E000-F8FF, U+F0000-FFFFD, U+23FB-23FE, U+2B58; font-display: block; }
+
+/* Layout: a workbench. Module shelf on the left, terminal preview and prompt lanes in the middle, inspector on the right, starship.toml under the lanes. */
+:root {
+  --bg: #e7eaf0; --panel: #f7f8fa; --sunk: #dde2ea; --ink: #141821; --muted: #566073; --line: #cad1dc;
+  --accent: #c2441a; --accent-soft: #f6dfd5; --accent-ink: #ffffff; --focus: #2b67d8; --danger: #b42318;
+  --c-core: #2f6bd1; --c-vcs: #8646cc; --c-cloud: #0d8584; --c-env: #36852b; --c-lang: #ad711a; --c-block: #687083;
+  --f-display: "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --f-term: "FantasqueSansM Nerd Font Propo", "FantasqueSansM Nerd Font", "FantasqueSansM Nerd Font Mono", "Fantasque Sans Mono", "NF Symbols Subset", "JetBrains Mono", ui-monospace, monospace;
+  --r: 7px;
+  --shadow: 0 1px 0 rgba(20, 24, 33, .04), 0 8px 24px -12px rgba(20, 24, 33, .18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1015; --panel: #151920; --sunk: #0a0c10; --ink: #e3e6ed; --muted: #8b95a8; --line: #262d39;
+    --accent: #ff7a48; --accent-soft: #3a2117; --accent-ink: #1b0b04; --focus: #74a4ff; --danger: #ff6b5e;
+    --c-core: #74a4ff; --c-vcs: #b88df2; --c-cloud: #3cc4c2; --c-env: #72c862; --c-lang: #e3a748; --c-block: #8e97aa;
+    --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1015; --panel: #151920; --sunk: #0a0c10; --ink: #e3e6ed; --muted: #8b95a8; --line: #262d39;
+  --accent: #ff7a48; --accent-soft: #3a2117; --accent-ink: #1b0b04; --focus: #74a4ff; --danger: #ff6b5e;
+  --c-core: #74a4ff; --c-vcs: #b88df2; --c-cloud: #3cc4c2; --c-env: #72c862; --c-lang: #e3a748; --c-block: #8e97aa;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+code, .mono { font-family: var(--f-code); font-size: 12.5px; }
+
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding-block: 14px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  max-width: 1640px; margin: 0 auto;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.brand h1 .glyph { color: var(--accent); }
+.brand .sub { color: var(--muted); font-size: 12.5px; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); cursor: pointer;
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+}
+.btn:hover { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.small { height: 26px; padding: 0 9px; font-size: 12px; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--danger); }
+select.btn { padding-right: 8px; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; }
+.switch input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+
+.app {
+  display: grid; gap: 16px; align-items: start;
+  grid-template-columns: 248px minmax(0, 1fr) 330px;
+  grid-template-areas: "shelf stage insp" "shelf out insp";
+  padding-block: 4px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  max-width: 1640px; margin: 0 auto;
+}
+.shelf { grid-area: shelf; position: sticky; top: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; min-height: 0; }
+.stage { grid-area: stage; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.inspector { grid-area: insp; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; min-width: 0; }
+.output { grid-area: out; min-width: 0; }
+@media (max-width: 1220px) {
+  .app { grid-template-columns: 236px minmax(0, 1fr); grid-template-areas: "shelf stage" "shelf insp" "shelf out"; }
+  .inspector { position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 780px) {
+  .screen { font-size: 13px; padding: 12px; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "shelf" "insp" "out"; }
+  .shelf { position: static; max-height: 420px; }
+}
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.panel-h { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.label { font-family: var(--f-display); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hint { color: var(--muted); font-size: 12.5px; }
+
+/* Shelf */
+.shelf .panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.search { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.search input { width: 100%; height: 32px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); padding: 0 10px; }
+.shelf-scroll { overflow: auto; padding: 6px 8px 12px; min-height: 0; }
+.cat { margin-top: 8px; }
+.cat > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 6px 4px; }
+.cat > summary::-webkit-details-marker { display: none; }
+.cat > summary .count { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cat > summary::before { content: "▸"; color: var(--muted); font-size: 10px; transition: transform .15s; }
+.cat[open] > summary::before { transform: rotate(90deg); }
+.pal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.pal {
+  display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 8px; border-radius: 6px; cursor: grab;
+  border: 1px solid transparent; user-select: none; min-width: 0;
+}
+.pal:hover { background: var(--bg); border-color: var(--line); }
+.pal .nm { font-family: var(--f-code); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal .sym { font-family: var(--f-term); font-size: 14px; color: var(--muted); margin-left: auto; white-space: pre; }
+.pal .used { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.pal .add { margin-left: 4px; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-size: 14px; line-height: 1; display: grid; place-items: center; flex: none; }
+.pal .sym + .add, .pal .used + .add { margin-left: 4px; }
+.pal .nm + .add { margin-left: auto; }
+.dot { width: 8px; height: 8px; border-radius: 2px; flex: none; background: var(--c-block); }
+.k-core .dot { background: var(--c-core); } .k-vcs .dot { background: var(--c-vcs); } .k-cloud .dot { background: var(--c-cloud); }
+.k-env .dot { background: var(--c-env); } .k-lang .dot { background: var(--c-lang); } .k-block .dot { background: var(--c-block); }
+
+/* Terminal */
+.term { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); }
+.term-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.term-bar .title { font-family: var(--f-code); font-size: 12px; color: var(--muted); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.term-bar select { max-width: 210px; height: 26px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 0 6px; }
+.screen { font-family: var(--f-term); font-size: 15.5px; line-height: 1.5; padding: 14px 16px 18px; overflow-x: auto; min-height: 150px; }
+.screen.alt-font { --f-term: "NF Symbols Subset", "JetBrains Mono", ui-monospace, monospace; }
+.tl { display: flex; white-space: pre; min-height: 1.5em; }
+.tl > span { flex: none; }
+.tl .fill { flex: 1 1 0; overflow: hidden; min-width: 1ch; }
+.tl .spacer { flex: 1 1 auto; min-width: 2ch; }
+.tl .old { opacity: .78; }
+.cursor { display: inline-block; width: .6em; animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+.fontnote { font-size: 12px; color: var(--muted); }
+
+.scen { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.scen .label { margin-right: 4px; }
+.tog { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-size: 12.5px; user-select: none; }
+.tog[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--ink); }
+.tog[aria-pressed="true"]::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.scen select { height: 28px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); padding: 0 8px; font-size: 12.5px; }
+
+/* Lanes */
+.lanes { display: flex; flex-direction: column; gap: 10px; }
+.lane-wrap { padding: 10px 12px 12px; }
+.lane-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.lane-head code { color: var(--muted); }
+.lane-head .hint { margin-left: auto; }
+.lane { min-height: 48px; padding: 6px; border: 1.5px dashed var(--line); border-radius: 8px; background: var(--bg); line-height: 0; }
+.lane:empty::before { content: attr(data-empty); display: block; line-height: 1.4; padding: 8px; color: var(--muted); font-size: 13px; }
+.lane .lb { display: block; content: ""; height: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; margin: 3px; padding: 0 10px 0 8px;
+  border-radius: 7px; border: 1px solid var(--line); background: var(--panel); cursor: grab; vertical-align: top;
+  line-height: 1; max-width: 100%;
+}
+.chip:hover { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); }
+.chip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.chip .nm { font-family: var(--f-code); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip .sym { font-family: var(--f-term); font-size: 15px; white-space: pre; }
+.chip .tag { font-size: 10px; font-family: var(--f-display); letter-spacing: .04em; text-transform: uppercase; padding: 2px 5px; border-radius: 4px; background: var(--sunk); color: var(--muted); }
+.chip.off .nm { text-decoration: line-through; color: var(--muted); }
+.chip.ghost { border-style: dashed; }
+.chip.txt { padding: 0 6px; }
+.chip.txt .tx { font-family: var(--f-term); font-size: 16px; line-height: 24px; height: 24px; padding: 0 2px; border-radius: 3px; white-space: pre; min-width: 14px; text-align: center; }
+.chip.raw code { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; display: block; }
+.chip.nl { background: var(--sunk); }
+.sortable-ghost { opacity: .35; }
+.sortable-drag { opacity: .95; }
+.trash {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 8px;
+  border: 1.5px dashed var(--danger); color: var(--danger); font-size: 13px; line-height: 1;
+}
+.trash[hidden] { display: none !important; }
+.trash .chip { display: none; }
+
+/* Inspector */
+.inspector .panel { overflow: hidden; }
+.insp-body { padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+.insp-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.insp-title h2 { font-family: var(--f-code); font-size: 15px; margin: 0; font-weight: 700; }
+.insp-title a { margin-left: auto; color: var(--accent); font-size: 12.5px; text-decoration: none; }
+.insp-title a:hover { text-decoration: underline; }
+.desc { margin: 0; color: var(--muted); }
+.notice { border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.notice.quiet { border-color: var(--line); background: var(--bg); color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.group-h { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.group-h::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.field-top label { font-family: var(--f-code); font-size: 12.5px; font-weight: 700; }
+.field-top .chg { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.field-top .reset { margin-left: auto; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0; }
+.field-top .reset:hover { color: var(--accent); }
+.field .help { font-size: 12px; color: var(--muted); }
+.inp { width: 100%; min-width: 0; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 0 8px; font-family: var(--f-term); font-size: 14px; }
+textarea.inp { height: auto; min-height: 58px; padding: 6px 8px; resize: vertical; font-family: var(--f-code); font-size: 12.5px; line-height: 1.5; }
+.inp-row { display: flex; gap: 6px; min-width: 0; }
+.inp-row .inp { flex: 1; }
+.icon-btn { flex: none; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-family: var(--f-term); font-size: 15px; }
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.style-ed { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sw-btn { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px 0 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 12px; }
+.sw { width: 16px; height: 16px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); background: repeating-linear-gradient(45deg, transparent 0 3px, var(--line) 3px 6px); }
+.mod-btn { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; font-size: 12.5px; }
+.mod-btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.quick button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; font-family: var(--f-term); font-size: 16px; }
+details.more > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 2px 0; }
+details.more[open] > summary { margin-bottom: 10px; }
+details.more .fields { display: flex; flex-direction: column; gap: 14px; }
+.empty-insp { padding: 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+.empty-insp ol { margin: 0; padding-left: 18px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+
+/* Output */
+.out-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.out-h .path { font-family: var(--f-code); font-size: 12px; color: var(--muted); margin-right: auto; }
+.toml { margin: 0; padding: 12px 14px; overflow: auto; max-height: 520px; font-family: var(--f-code); font-size: 12.5px; line-height: 1.6; background: var(--sunk); border-radius: 0 0 10px 10px; tab-size: 4; }
+.toml .c { color: var(--muted); font-style: italic; }
+.toml .h { color: var(--c-vcs); font-weight: 700; }
+.toml .k { color: var(--c-core); }
+.toml .s { color: var(--c-env); }
+.toml .v { color: var(--c-lang); }
+.toml .g { font-family: var(--f-term); }
+.import { padding: 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.import textarea { width: 100%; min-height: 160px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 8px; font-family: var(--f-code); font-size: 12.5px; }
+.import .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.err { color: var(--danger); font-size: 13px; }
+
+/* Popover + toast */
+.pop { position: absolute; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 10px; width: 292px; max-width: calc(100vw - 32px); }
+.pop .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.pop .grid button { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); cursor: pointer; font-family: var(--f-term); font-size: 17px; padding: 0; }
+.pop .grid button:hover { border-color: var(--accent); }
+.pop .sws button { background: var(--bg); }
+.pop .sws button span { display: block; width: 100%; height: 100%; border-radius: 4px; }
+.pop h4 { margin: 8px 0 6px; font-family: var(--f-display); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.pop h4:first-child { margin-top: 0; }
+.pop .row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.pop input[type="color"] { width: 36px; height: 28px; border: 1px solid var(--line); border-radius: 6px; padding: 0; background: none; }
+.pop .scroll { max-height: 260px; overflow: auto; }
+.pop.cp { width: 320px; max-height: min(640px, calc(100vh - 32px)); overflow: auto; }
+.pop .x256 { grid-template-columns: repeat(12, 1fr); gap: 2px; margin-top: 6px; }
+.pop .x256 button { border-radius: 3px; }
+.cp-foot { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.cp-foot .big { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line); flex: none; }
+.cp-foot .meta { display: flex; flex-direction: column; min-width: 0; }
+.cp-foot .meta span { font-size: 11.5px; color: var(--muted); }
+#theme-import { border-bottom: 1px solid var(--line); background: var(--panel); }
+.pop.gp { width: 460px; padding: 0; display: flex; flex-direction: column; max-height: min(620px, calc(100vh - 32px)); }
+.gp-head { padding: 10px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.gp-head input { width: 100%; height: 34px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); padding: 0 10px; }
+.gp-sets { display: flex; gap: 4px; flex-wrap: wrap; }
+.gp-sets button { height: 24px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-size: 11.5px; }
+.gp-sets button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.gp-body { overflow: auto; padding: 4px 10px 10px; flex: 1; min-height: 120px; }
+.gp-body .grid { grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); }
+.gp-body .grid button { font-size: 19px; }
+.gp-more { margin: 10px 0 2px; font-size: 12px; color: var(--muted); }
+.gp-foot { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid var(--line); min-height: 52px; }
+.gp-foot .big { font-family: var(--f-term); font-size: 28px; width: 36px; text-align: center; flex: none; }
+.gp-foot .meta { min-width: 0; display: flex; flex-direction: column; }
+.gp-foot .meta code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-foot .meta span { font-size: 11.5px; color: var(--muted); }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 9px 14px; border-radius: 8px; font-size: 13px; z-index: 60; max-width: calc(100vw - 32px); box-shadow: var(--shadow); }
+</style>
+
+<header class="topbar">
+  <div class="brand">
+    <h1><span class="glyph" aria-hidden="true">❯</span> Prompt Builder</h1>
+    <span class="sub">for Starship 1.27 · drag modules, preview, copy starship.toml</span>
+  </div>
+  <div class="tools">
+    <select id="preset" class="btn" aria-label="Load a preset">
+      <option value="">Load preset…</option>
+    </select>
+    <button class="btn" id="undo" title="Undo (Ctrl+Z)">↶ Undo</button>
+    <button class="btn" id="redo" title="Redo (Ctrl+Shift+Z)">↷ Redo</button>
+    <button class="btn" id="glyphs" data-act="pick-glyph" data-target="" title="Browse every Nerd Font icon and copy one"><span style="font-family:var(--f-term)" aria-hidden="true">&#xf0ac;</span> Icons</button>
+    <label class="switch" title="Swap Starship's emoji defaults for the Nerd Font symbols preset"><input type="checkbox" id="nf"> Nerd Font symbols</label>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="shelf" aria-label="Modules">
+    <div class="panel">
+      <div class="panel-h"><span class="label">Modules</span><span class="hint" style="margin-left:auto">drag or press +</span></div>
+      <div class="search"><input id="q" type="search" placeholder="Search 100+ modules" autocomplete="off"></div>
+      <div class="shelf-scroll" id="shelf"></div>
+    </div>
+  </aside>
+
+  <section class="stage" aria-label="Preview and prompt layout">
+    <div class="term" id="term">
+      <div class="term-bar">
+        <span class="title" id="term-title">jon@minibox: ~/code/dotfiles/starship</span>
+        <select id="theme" aria-label="Terminal colors"></select>
+        <button class="btn small" id="theme-import-toggle" title="Preview with your own terminal theme">Import theme</button>
+        <button class="btn small ghost" id="theme-remove" hidden>Remove theme</button>
+        <select id="font" aria-label="Preview font">
+          <option value="mine">FantasqueSansM Nerd Font</option>
+          <option value="bundled">JetBrains Mono + symbols</option>
+        </select>
+      </div>
+      <div class="import" id="theme-import" hidden>
+        <label class="hint" for="theme-src">Paste a terminal color scheme or open the file. Works with Base16/Base24 YAML, Alacritty, Kitty, Ghostty, WezTerm, foot, Windows Terminal JSON, iTerm2 .itermcolors and Xresources. It's only used for the preview and stays in this browser.</label>
+        <input class="inp" id="theme-name" placeholder="Theme name" autocomplete="off" style="font-family:var(--f-body)">
+        <textarea id="theme-src" spellcheck="false" placeholder="[colors.primary]&#10;background = &quot;#1e1e2e&quot;&#10;foreground = &quot;#cdd6f4&quot;&#10;…"></textarea>
+        <div class="row">
+          <button class="btn small primary" id="theme-go">Use this theme</button>
+          <label class="btn small">Open file…<input type="file" id="theme-file" hidden></label>
+          <span class="err" id="theme-err"></span>
+        </div>
+      </div>
+      <div class="screen" id="screen" role="img" aria-label="Prompt preview"></div>
+    </div>
+    <div class="scen" id="scen" aria-label="Preview scenario"></div>
+    <div class="fontnote" id="fontnote"></div>
+
+    <div class="lanes">
+      <div class="panel lane-wrap">
+        <div class="lane-head"><span class="label">Left prompt</span><code>format</code><span class="hint">Drag to reorder. Click a chip to edit it.</span></div>
+        <div class="lane" id="lane-left" data-lane="left" data-empty="Drop modules here. An empty format falls back to Starship's default ($all)."></div>
+      </div>
+      <div class="panel lane-wrap">
+        <div class="lane-head"><span class="label">Right prompt</span><code>right_format</code><span class="hint">Shown on the input line in zsh, fish, nushell, elvish and xonsh.</span></div>
+        <div class="lane" id="lane-right" data-lane="right" data-empty="Optional. Drop modules here to put them on the right edge."></div>
+      </div>
+      <div class="trash" id="trash" hidden>Drop here to remove</div>
+    </div>
+  </section>
+
+  <aside class="inspector" aria-label="Inspector">
+    <div class="panel" id="insp"></div>
+  </aside>
+
+  <section class="output panel" aria-label="starship.toml">
+    <div class="out-h">
+      <span class="label">starship.toml</span>
+      <span class="path">~/.config/starship.toml</span>
+      <button class="btn small" id="import-toggle">Import config</button>
+      <button class="btn small primary" id="copy">Copy</button>
+    </div>
+    <div class="import" id="import" hidden>
+      <label class="hint" for="import-src">Paste an existing starship.toml, or open the file. Module tables, palettes and substitutions are kept.</label>
+      <textarea id="import-src" spellcheck="false" placeholder="format = &quot;$all&quot;"></textarea>
+      <div class="row">
+        <button class="btn small primary" id="import-go">Load config</button>
+        <label class="btn small">Open file…<input type="file" id="import-file" accept=".toml,text/plain" hidden></label>
+        <span class="err" id="import-err"></span>
+      </div>
+    </div>
+    <pre class="toml" id="toml" tabindex="0"></pre>
+  </section>
+</div>
+<div class="pop" id="pop" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+"use strict";
+const DATA = /*@DATA@*/null;
+const PRESETS = /*@PRESETS@*/null;
+const CURATED = /*@GLYPHS@*/null;
+const NFDATA = /*@NFDATA@*/null;
+const UNIDATA = /*@UNIDATA@*/null;
+// Plain Unicode symbols that render without a Nerd Font
+const PROMPT_FAVES = [..."❯➜→⟩›»λ∴∵✓✔✗✘✕×✦✧★☆●○◉◆◇■□▲△▶▷▸▹►‣•·…⋯⇡⇣⇕⇅↑↓↕⇄±≠≈∞§¶†‡⌘⌥⏎↵⎇⚡⚑⚙☰⌂✎✚✖☁☂☀☾♥♦♣♠♪♯✱✳❖◖◗◐◑◒◓▏▕│┃╱╲░▒▓█"];
+const BASE_SCHEMES = /*@BASE@*/null;
+const M = DATA.modules;
+M.kubernetes.desc = M.kubernetes.desc || "Shows the current Kubernetes context name and, if set, the namespace.";
+M.kubernetes.h = M.kubernetes.h || "kubernetes";
+
+/* ---------- categories ---------- */
+const CATS = [
+  ["core", "Prompt essentials", ["character", "directory", "username", "hostname", "os", "shell", "cmd_duration", "status", "jobs", "time", "sudo", "battery", "memory_usage", "localip", "shlvl", "container", "netns", "env_var"]],
+  ["vcs", "Version control", ["git_branch", "git_status", "git_commit", "git_state", "git_metrics", "jj_bookmark", "jj_change", "jj_status", "jj_metrics", "hg_branch", "hg_state", "fossil_branch", "fossil_metrics", "pijul_channel", "vcsh"]],
+  ["cloud", "Cloud & containers", ["docker_context", "kubernetes", "aws", "gcloud", "azure", "openstack", "terraform", "pulumi", "helm", "nats", "vagrant", "singularity"]],
+  ["env", "Environments", ["nix_shell", "guix_shell", "direnv", "conda", "pixi", "spack", "mise", "package"]],
+  ["lang", "Languages & build tools", null],
+];
+const CAT_OF = {};
+for (const [k, , list] of CATS) if (list) list.forEach(n => CAT_OF[n] = k);
+const LANG = Object.keys(M).filter(n => !CAT_OF[n] && n !== "fill" && n !== "line_break").sort();
+CATS[4][2] = LANG; LANG.forEach(n => CAT_OF[n] = "lang");
+CAT_OF.fill = CAT_OF.line_break = CAT_OF.all = "block";
+const catOf = n => CAT_OF[n] || (n.startsWith("custom.") ? "block" : n.startsWith("env_var") ? "core" : "block");
+
+const PL = { r: "\ue0b0", rt: "\ue0b1", l: "\ue0b2", lt: "\ue0b3", rr: "\ue0b4", rl: "\ue0b6", sl: "\ue0bc", sr: "\ue0ba", fade: "░▒▓" };
+const BLOCKS = [
+  { kind: "text", label: "Text", text: " text ", style: "" },
+  { kind: "text", label: "Space", text: " ", style: "" },
+  { kind: "text", label: "Powerline arrow", text: PL.r, style: "", fit: 1 },
+  { kind: "text", label: "Powerline arrow, left", text: PL.l, style: "", fit: 1 },
+  { kind: "text", label: "Round cap, left", text: PL.rl, style: "", fit: 1 },
+  { kind: "text", label: "Round cap, right", text: PL.rr, style: "", fit: 1 },
+  { kind: "text", label: "Slant", text: PL.sl, style: "", fit: 1 },
+  { kind: "text", label: "Fade", text: PL.fade, style: "", fit: 1 },
+  { kind: "mod", label: "line_break", name: "line_break" },
+  { kind: "mod", label: "fill", name: "fill" },
+  { kind: "mod", label: "$all (everything else)", name: "all" },
+  { kind: "custom", label: "Custom command" },
+  { kind: "envvar", label: "Environment variable" },
+];
+
+/* ---------- terminal themes ---------- */
+const THEMES = {
+  "Catppuccin Mocha": { bg: "#1e1e2e", fg: "#cdd6f4", c: ["#45475a", "#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7", "#94e2d5", "#bac2de", "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7", "#94e2d5", "#a6adc8"] },
+  "Tokyo Night": { bg: "#1a1b26", fg: "#c0caf5", c: ["#15161e", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#a9b1d6", "#414868", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#c0caf5"] },
+  "Gruvbox Dark": { bg: "#282828", fg: "#ebdbb2", c: ["#282828", "#cc241d", "#98971a", "#d79921", "#458588", "#b16286", "#689d6a", "#a89984", "#928374", "#fb4934", "#b8bb26", "#fabd2f", "#83a598", "#d3869b", "#8ec07c", "#ebdbb2"] },
+  "COSMIC Dark": { bg: "#1b1b1b", fg: "#d7d7d7", c: ["#1b1b1b", "#f16161", "#7cb987", "#ddc74c", "#6296be", "#be6dee", "#49bac8", "#bebebe", "#808080", "#ff8985", "#97d5a0", "#fae365", "#7db1da", "#d68eff", "#49bac8", "#ffffff"] },
+  "Solarized Light": { bg: "#fdf6e3", fg: "#586e75", c: ["#073642", "#dc322f", "#859900", "#b58900", "#268bd2", "#d33682", "#2aa198", "#eee8d5", "#002b36", "#cb4b16", "#586e75", "#657b83", "#839496", "#6c71c4", "#93a1a1", "#fdf6e3"] },
+};
+const ANSI = ["black", "red", "green", "yellow", "blue", "purple", "cyan", "white"];
+const BUILTIN_THEMES = Object.keys(THEMES);
+// Base16 maps to terminal colors the way base16-shell does; Base24 uses its extra bright slots
+const B16_MAP = ["base00", "base08", "base0B", "base0A", "base0D", "base0E", "base0C", "base05", "base03", "base08", "base0B", "base0A", "base0D", "base0E", "base0C", "base07"];
+const B24_MAP = ["base01", "base08", "base0B", "base0A", "base0D", "base0E", "base0C", "base06", "base02", "base12", "base14", "base13", "base16", "base17", "base15", "base07"];
+const BASE_KEYS = n => Array.from({ length: n }, (_, i) => "base" + i.toString(16).toUpperCase().padStart(2, "0"));
+function themeFromBase(base, sys) {
+  const map = sys === "base24" ? B24_MAP : B16_MAP;
+  return { bg: base.base00, fg: base.base05, c: map.map(k => base[k] || base.base05), base, sys };
+}
+function registerBaseThemes() {
+  for (const [sys, list] of Object.entries(BASE_SCHEMES)) for (const ent of list) {
+    const [name, variant, hex] = ent.split("|"); const keys = BASE_KEYS(sys === "base24" ? 24 : 16); const base = {};
+    keys.forEach((k, i) => base[k] = "#" + hex.slice(i * 6, i * 6 + 6));
+    THEMES[(sys === "base24" ? "b24:" : "b16:") + name] = Object.assign(themeFromBase(base, sys), { variant });
+  }
+}
+function importedThemes() { try { return JSON.parse(localStorage.getItem("spb:themes") || "{}"); } catch (e) { return {}; } }
+function saveImportedThemes(o) { try { localStorage.setItem("spb:themes", JSON.stringify(o)); } catch (e) {} }
+const curTheme = () => THEMES[view.theme] || THEMES["Catppuccin Mocha"];
+const themeLabel = k => k.replace(/^(b16|b24|imp):/, "");
+function renderThemeSelect() {
+  const el = document.getElementById("theme"); const keys = Object.keys(THEMES);
+  const grp = (label, pre) => { const ks = keys.filter(k => pre ? k.startsWith(pre) : !/^(b16|b24|imp):/.test(k)); return ks.length ? `<optgroup label="${label} (${ks.length})">${ks.map(k => `<option value="${esc(k)}">${esc(themeLabel(k))}</option>`).join("")}</optgroup>` : ""; };
+  el.innerHTML = grp("Built in", "") + grp("Imported", "imp:") + grp("Base16", "b16:") + grp("Base24", "b24:");
+  el.value = THEMES[view.theme] ? view.theme : "Catppuccin Mocha";
+  document.getElementById("theme-remove").hidden = !view.theme.startsWith("imp:");
+}
+
+/* Terminal theme import: reads the color keys most terminal config formats share */
+function parseColor(v) {
+  v = String(v).trim().replace(/\s*[#;].*$/, m => /^\s*#[0-9a-f]{3,8}\b/i.test(m) ? m : "").trim().replace(/^["']|["'],?$/g, "").replace(/["']$/, "");
+  let m;
+  if ((m = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(v))) return "#" + m[1].toLowerCase();
+  if ((m = /^#([0-9a-f]{3})$/i.exec(v))) return "#" + m[1].split("").map(x => x + x).join("").toLowerCase();
+  if ((m = /^0x([0-9a-f]{6})$/i.exec(v))) return "#" + m[1].toLowerCase();
+  if ((m = /^rgb:([0-9a-f]{2,4})\/([0-9a-f]{2,4})\/([0-9a-f]{2,4})$/i.exec(v))) return "#" + [m[1], m[2], m[3]].map(x => x.slice(0, 2)).join("").toLowerCase();
+  if ((m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v))) return "#" + [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, "0")).join("");
+  return null;
+}
+function parseTermTheme(text) {
+  const c = new Array(16).fill(null); let bg = null, fg = null; const base = {};
+  const NAMES = { black: 0, red: 1, green: 2, yellow: 3, blue: 4, magenta: 5, purple: 5, cyan: 6, white: 7 };
+  if (/<plist/i.test(text)) {
+    const re = /<key>([^<]+)<\/key>\s*<dict>([\s\S]*?)<\/dict>/g; let m;
+    while ((m = re.exec(text))) {
+      const comp = k => { const r = new RegExp("<key>" + k + " Component</key>\\s*<real>([^<]+)</real>").exec(m[2]); return r ? Math.round(Math.min(1, parseFloat(r[1])) * 255) : 0; };
+      const hex = "#" + [comp("Red"), comp("Green"), comp("Blue")].map(x => x.toString(16).padStart(2, "0")).join("");
+      const k = m[1].trim(); const a = /^Ansi (\d+) Color$/.exec(k);
+      if (a && +a[1] < 16) c[+a[1]] = hex; else if (k === "Background Color") bg = hex; else if (k === "Foreground Color") fg = hex;
+    }
+  } else {
+    let obj = null; try { obj = JSON.parse(text); } catch (e) {}
+    if (obj) {
+      if (Array.isArray(obj.schemes) && obj.schemes.length) obj = obj.schemes[0];
+      const lines = [];
+      const walk = (o, path) => { const sc = Object.entries(o).filter(([, v]) => !isObj(v)); if (sc.length) { lines.push(`[${path}]`); for (const [k, v] of sc) lines.push(Array.isArray(v) ? `${k} = [${v.map(x => JSON.stringify(x)).join(", ")}]` : `${k} = ${JSON.stringify(v)}`); } for (const [k, v] of Object.entries(o)) if (isObj(v)) walk(v, path ? path + "." + k : k); };
+      walk(obj, ""); text = lines.join("\n");
+    }
+    for (const m of text.matchAll(/\b(ansi|normal|regular|brights?)\s*[=:]\s*\[([^\]]*)\]/gi)) {
+      const cols = [...m[2].matchAll(/["']?(#?[0-9a-fA-F]{3,8}|0x[0-9a-fA-F]{6})["']?/g)].map(x => parseColor(x[1])).filter(Boolean);
+      const off = /^bright/i.test(m[1]) ? 8 : 0; cols.slice(0, 8).forEach((h, i) => c[off + i] = h);
+    }
+    for (const m of text.matchAll(/^\s*palette\s*=\s*(\d+)\s*=\s*(\S+)/gim)) { const h = parseColor(m[2]); if (h && +m[1] < 16) c[+m[1]] = h; }
+    let ctx = 0;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim(); if (!line || /^(\/\/|!|;)/.test(line) || (/^#/.test(line) && !/^#[0-9a-f]{3,8}\b/i.test(line))) continue;
+      const kv = /^["']?([\w.*\-\[\]]+?)["']?\s*[:=]\s*(.+?)\s*,?$/.exec(line) || /^([A-Za-z_][\w-]*)\s+(\S+)$/.exec(line);
+      const val = kv ? parseColor(kv[2]) : null;
+      if (!val) {
+        const hdr = line.toLowerCase();
+        if (/cursor|selection|search|hint|footer|tab|dim|indexed|vi_mode|line_indicator|url|match/.test(hdr)) ctx = -1;
+        else if (/bright/.test(hdr)) ctx = 8;
+        else if (/normal|regular|ansi|primary|colors|palette|\[|\{|\(|:$/.test(hdr)) ctx = 0;
+        continue;
+      }
+      const key = kv[1].split(/[.*]/).pop().toLowerCase().replace(/^\[|\]$/g, "");
+      let m2;
+      if ((m2 = /^(?:color|colour)(\d+)$/.exec(key)) && +m2[1] < 16) c[+m2[1]] = val;
+      else if ((m2 = /^regular(\d)$/.exec(key))) c[+m2[1]] = val;
+      else if ((m2 = /^bright(\d)$/.exec(key))) c[8 + +m2[1]] = val;
+      else if ((m2 = /^base(0[0-9a-f]|1[0-7])$/i.exec(key))) base["base" + m2[1].toUpperCase()] = val;
+      else if ((m2 = /^(bright[_-]?)?(black|red|green|yellow|blue|magenta|purple|cyan|white)$/.exec(key))) { if (ctx >= 0) c[NAMES[m2[2]] + (m2[1] || ctx === 8 ? 8 : 0)] = val; }
+      else if ((key === "background" || key === "bg") && ctx !== -1) bg = bg || val;
+      else if ((key === "foreground" || key === "fg") && ctx !== -1) fg = fg || val;
+    }
+  }
+  if (Object.keys(base).length >= 16 && c.filter(Boolean).length < 8) {
+    const t = themeFromBase(base, Object.keys(base).length >= 24 ? "base24" : "base16"); return t;
+  }
+  for (let i = 0; i < 8; i++) { c[i] = c[i] || c[i + 8]; c[i + 8] = c[i + 8] || c[i]; }
+  const missing = c.map((x, i) => x ? null : i).filter(x => x !== null);
+  if (missing.length > 8 || (!bg && !c[0])) throw new Error("couldn't find the 16 terminal colors in that text.");
+  bg = bg || c[0]; fg = fg || c[7] || "#d0d0d0";
+  for (const i of missing) c[i] = i % 8 === 0 ? bg : fg;
+  return { bg, fg, c };
+}
+
+/* ---------- state ---------- */
+let uid = 1;
+const nid = () => "i" + (uid++);
+let state = null;     // { left, right, mods, top, extra, nf }
+let scen = { project: "nodejs", git: true, dirty: true, failed: false, long: true, jobs: false, ssh: false, root: false, shell: "zsh", distro: "CachyOS" };
+let view = { theme: "Catppuccin Mocha", font: "mine" };
+let sel = null;       // item id
+const hist = { undo: [], redo: [], last: 0, tag: "" };
+
+const clone = o => JSON.parse(JSON.stringify(o));
+const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+function snapshot() { return JSON.stringify({ left: state.left, right: state.right, mods: state.mods, top: state.top, extra: state.extra, nf: state.nf }); }
+function commit(tag) {
+  const now = Date.now();
+  if (!(tag && tag === hist.tag && now - hist.last < 900)) {
+    hist.undo.push(snapshot()); if (hist.undo.length > 150) hist.undo.shift();
+    hist.redo = [];
+  }
+  hist.last = now; hist.tag = tag || "";
+}
+function restore(s) { const o = JSON.parse(s); Object.assign(state, o); }
+function undo() { if (!hist.undo.length) return; hist.redo.push(snapshot()); restore(hist.undo.pop()); hist.tag = ""; afterChange(true); }
+function redo() { if (!hist.redo.length) return; hist.undo.push(snapshot()); restore(hist.redo.pop()); hist.tag = ""; afterChange(true); }
+
+/* ---------- module config ---------- */
+const CUSTOM_DEF = { d: { format: "[$symbol($output )]($style)", symbol: "", style: "bold green", command: "", when: false, shell: "", description: "<custom config>", disabled: false }, desc: "Runs a shell command and shows its output. Starship only shows it when `when` is true or succeeds.", h: "custom-commands" };
+const ENV_DEF = { d: { format: "with [$env_value]($style) ", style: "black bold dimmed", symbol: "", variable: "", default: "", description: "<env_var module>", disabled: false }, desc: "Shows the value of an environment variable.", h: "environment-variable" };
+const UNKNOWN_DEF = { d: { format: "[$symbol]($style)", symbol: "", style: "", disabled: false }, desc: "This module isn't in Starship 1.27's schema. It's kept as-is in the output.", h: "" };
+function modDef(name) {
+  if (M[name] && name !== "env_var") return M[name];
+  if (name.startsWith("custom.")) return CUSTOM_DEF;
+  if (name === "env_var" || name.startsWith("env_var.")) return ENV_DEF;
+  return UNKNOWN_DEF;
+}
+function baseCfg(name) {
+  const def = modDef(name); const d = clone(def.d);
+  if (state.nf && def.nf) for (const k in def.nf) {
+    if (k === "symbols") d.symbols = Object.assign({}, d.symbols, def.nf.symbols); else d[k] = def.nf[k];
+  }
+  return d;
+}
+function cfg(name) {
+  const b = baseCfg(name); const o = state.mods[name] || {};
+  for (const k in o) b[k] = isObj(o[k]) && isObj(b[k]) ? Object.assign({}, b[k], o[k]) : o[k];
+  return b;
+}
+function setOpt(name, key, val) {
+  const b = baseCfg(name); const o = state.mods[name] || (state.mods[name] = {});
+  if (val === undefined || eq(val, b[key])) delete o[key]; else o[key] = val;
+  if (!Object.keys(o).length) delete state.mods[name];
+}
+function setSub(name, key, sub, val) {
+  const o = state.mods[name] || (state.mods[name] = {});
+  const t = Object.assign({}, o[key]);
+  const b = (baseCfg(name)[key] || {})[sub];
+  if (val === undefined || val === b) delete t[sub]; else t[sub] = val;
+  if (Object.keys(t).length) o[key] = t; else delete o[key];
+  if (!Object.keys(o).length) delete state.mods[name];
+}
+
+/* ---------- format strings ---------- */
+const astCache = new Map();
+function parseFmt(s) {
+  if (astCache.has(s)) return astCache.get(s);
+  let i = 0;
+  function seq(end) {
+    const out = []; let buf = "", bs = i;
+    const flush = () => { if (buf) out.push({ t: "text", v: buf, s: bs, e: i }); buf = ""; bs = i; };
+    while (i < s.length) {
+      const c = s[i];
+      if (end && c === end) break;
+      if (c === "\\") { if (!buf) bs = i; buf += s[i + 1] ?? ""; i += 2; continue; }
+      if (c === "$") {
+        flush(); const st = i; i++; let name = "";
+        if (s[i] === "{") { const j = s.indexOf("}", i); if (j < 0) { buf += "$"; bs = st; continue; } name = s.slice(i + 1, j); i = j + 1; }
+        else { const m = /^[A-Za-z0-9_]+/.exec(s.slice(i)); name = m ? m[0] : ""; i += name.length; }
+        if (name) out.push({ t: "var", name, s: st, e: i }); else { buf = "$"; bs = st; }
+        bs = i; continue;
+      }
+      if (c === "[") {
+        flush(); const st = i; i++; const ch = seq("]"); if (s[i] === "]") i++;
+        let style = "";
+        if (s[i] === "(") { const j = s.indexOf(")", i); if (j >= 0) { style = s.slice(i + 1, j); i = j + 1; } }
+        out.push({ t: "group", children: ch, style, s: st, e: i }); bs = i; continue;
+      }
+      if (c === "(") {
+        flush(); const st = i; i++; const ch = seq(")"); if (s[i] === ")") i++;
+        out.push({ t: "cond", children: ch, s: st, e: i }); bs = i; continue;
+      }
+      if (!buf) bs = i;
+      buf += c; i++;
+    }
+    flush(); return out;
+  }
+  const ast = seq(null);
+  astCache.set(s, ast);
+  return ast;
+}
+function parseStyle(s) {
+  if (s == null) return null; s = String(s).trim(); if (!s) return null;
+  let st = {};
+  for (const tok of s.split(/\s+/)) {
+    const t = tok.toLowerCase();
+    if (t === "none") { st = { none: true }; continue; }
+    if (["bold", "italic", "underline", "dimmed", "inverted", "blink", "hidden", "strikethrough"].includes(t)) { st[t] = true; continue; }
+    if (t.startsWith("fg:")) { st.fg = tok.slice(3); continue; }
+    if (t.startsWith("bg:")) { st.bg = tok.slice(3); continue; }
+    st.fg = tok;
+  }
+  return st;
+}
+function evalNodes(nodes, resolve, inh) {
+  const segs = []; let nonEmpty = false;
+  for (const nd of nodes) {
+    if (nd.t === "text") { segs.push({ text: nd.v, st: inh }); }
+    else if (nd.t === "var") {
+      const v = resolve(nd.name);
+      if (v == null || v === "" || (Array.isArray(v) && !v.length)) continue;
+      nonEmpty = true;
+      if (Array.isArray(v)) for (const sg of v) segs.push(Object.assign({}, sg, { st: sg.st || inh }));
+      else segs.push({ text: String(v), st: inh });
+    } else if (nd.t === "group") {
+      const sstr = nd.style.replace(/\$\{?([A-Za-z0-9_]+)\}?/g, (m, k) => { const v = resolve(k); return typeof v === "string" ? v : ""; });
+      const st = parseStyle(sstr) || inh;
+      const r = evalNodes(nd.children, resolve, st);
+      nonEmpty = nonEmpty || r.nonEmpty; segs.push(...r.segs);
+    } else if (nd.t === "cond") {
+      const r = evalNodes(nd.children, resolve, inh);
+      if (r.nonEmpty) { segs.push(...r.segs); nonEmpty = true; }
+    }
+  }
+  return { segs, nonEmpty };
+}
+const fmtSegs = (fmt, vars) => evalNodes(parseFmt(String(fmt ?? "")), k => vars[k], null).segs;
+
+/* ---------- colors ---------- */
+function x256(n) {
+  const T = curTheme();
+  if (n < 16) return T.c[n];
+  if (n < 232) { n -= 16; const lv = [0, 95, 135, 175, 215, 255]; const r = lv[Math.floor(n / 36)], g = lv[Math.floor(n / 6) % 6], b = lv[n % 6]; return "#" + [r, g, b].map(x => x.toString(16).padStart(2, "0")).join(""); }
+  if (n < 256) { const v = 8 + (n - 232) * 10; return "#" + v.toString(16).padStart(2, "0").repeat(3); }
+  return null;
+}
+function activePalette() { const p = state.top.palette; return p && state.extra.palettes ? state.extra.palettes[p] : null; }
+function resolveColor(c, depth = 0) {
+  if (!c || depth > 6) return null; c = String(c);
+  if (c[0] === "#") { if (/^#[0-9a-f]{3}$/i.test(c)) return "#" + c.slice(1).split("").map(x => x + x).join(""); return /^#[0-9a-f]{6}$/i.test(c) ? c : null; }
+  if (/^\d+$/.test(c)) return x256(+c);
+  const pal = activePalette(); if (pal && pal[c] != null) return resolveColor(pal[c], depth + 1);
+  let lc = c.toLowerCase(); if (lc === "magenta") lc = "purple";
+  let bright = false; if (lc.startsWith("bright-")) { bright = true; lc = lc.slice(7); if (lc === "magenta") lc = "purple"; }
+  const i = ANSI.indexOf(lc); if (i >= 0) return curTheme().c[i + (bright ? 8 : 0)];
+  return null;
+}
+function styleCss(st) {
+  if (!st) return "";
+  const T = curTheme();
+  let fg = resolveColor(st.fg), bg = resolveColor(st.bg);
+  if (st.inverted) { const f = fg || T.fg, b = bg || T.bg; fg = b; bg = f; }
+  const css = [];
+  if (fg) css.push("color:" + (st.dimmed ? `color-mix(in srgb, ${fg} 62%, ${bg || T.bg})` : fg));
+  else if (st.dimmed) css.push(`color:color-mix(in srgb, ${T.fg} 62%, ${bg || T.bg})`);
+  if (bg) css.push("background:" + bg);
+  if (st.bold) css.push("font-weight:700");
+  if (st.italic) css.push("font-style:italic");
+  const dec = [st.underline && "underline", st.strikethrough && "line-through"].filter(Boolean);
+  if (dec.length) css.push("text-decoration:" + dec.join(" "));
+  if (st.hidden) css.push("color:transparent");
+  return css.join(";");
+}
+
+/* ---------- sample environment for the preview ---------- */
+const VERS = { nodejs: "22.11.0", python: "3.13.1", rust: "1.83.0", golang: "1.23.4", java: "21.0.5", lua: "5.4.7", ruby: "3.3.6", php: "8.4.1", deno: "2.1.4", bun: "1.1.38", c: "14.2.1", cpp: "14.2.1", zig: "0.13.0", dotnet: "9.0.100", elixir: "1.17.3", haskell: "9.8.4", kotlin: "2.1.0", swift: "6.0.2", helm: "3.16.3", terraform: "1.10.0", scala: "3.6.2", julia: "1.11.2", dart: "3.6.0", gleam: "1.6.3", nim: "2.2.0", ocaml: "5.2.1", perl: "5.40.0", cmake: "3.31.2", typst: "0.12.0", erlang: "27.1", crystal: "1.14.0", elm: "0.19.1", gradle: "8.11.1", maven: "3.9.9", package: "0.4.2", pixi: "0.39.0", mojo: "24.5", odin: "dev-2024-12", purescript: "0.15.15", quarto: "1.6.39", raku: "6.d", red: "0.6.5", rlang: "4.4.2", solidity: "0.8.28", vagrant: "2.4.3", vlang: "0.4.8", xmake: "2.9.7", buf: "1.47.2", cobol: "3.2.0", daml: "2.9.5", fennel: "1.5.1", fortran: "14.2.1", haxe: "4.3.6", opa: "0.70.0", pulumi: "3.142.0" };
+const EXTRA = {
+  c: { name: "gcc" }, cpp: { name: "g++" }, fortran: { name: "gfortran" }, elixir: { otp_version: "27" }, dotnet: { tfm: "net9.0" },
+  ocaml: { switch_indicator: "*", switch_name: "default" }, raku: { vm_version: "moar" }, python: { virtualenv: ".venv", pyenv_prefix: "" },
+  conda: { environment: "base" }, pixi: { environment: "default" }, spack: { environment: "dev" }, docker_context: { context: "desktop-linux" },
+  kubernetes: { context: "homelab", namespace: "apps" }, aws: { profile: "homelab", region: "us-east-1" },
+  gcloud: { account: "jon", domain: "wests.network", region: "us-central1", project: "homelab" }, azure: { subscription: "homelab" },
+  openstack: { cloud: "homelab", project: "infra" }, terraform: { workspace: "default" }, pulumi: { stack: "dev", username: "jon" },
+  nats: { name: "homelab" }, meson: { project: "prompt-lab" }, container: { name: "fedora-toolbox-41" }, netns: { name: "vpn" },
+  singularity: { env: "centos.img" }, shlvl: { shlvl: "3" }, vcsh: { repo: "dotfiles" }, hg_branch: { branch: "default" },
+  fossil_branch: { branch: "trunk" }, pijul_channel: { channel: "main" }, jj_bookmark: { bookmark: "main" }, jj_change: { change: "kxqpmvsl" },
+  jj_status: { all: "!1" }, hg_state: { state: "MERGING" }, nix_shell: { name: "devshell" }, localip: { localipv4: "192.168.1.42" },
+};
+const LONG_MS = 12340;
+const ALL_ACTIVE = new Set(["username", "hostname", "localip", "directory", "git_branch", "git_commit", "git_state", "git_metrics", "git_status", "nodejs", "cmd_duration", "line_break", "jobs", "battery", "time", "status", "os", "shell", "sudo", "memory_usage", "shlvl", "character"]);
+
+function strftime(f, d) {
+  const p = n => String(n).padStart(2, "0"); const h12 = d.getHours() % 12 || 12;
+  const map = { H: p(d.getHours()), M: p(d.getMinutes()), S: p(d.getSeconds()), I: p(h12), l: String(h12), p: d.getHours() < 12 ? "AM" : "PM", P: d.getHours() < 12 ? "am" : "pm", Y: d.getFullYear(), m: p(d.getMonth() + 1), d: p(d.getDate()), e: String(d.getDate()).padStart(2, " "), a: d.toLocaleDateString("en", { weekday: "short" }), A: d.toLocaleDateString("en", { weekday: "long" }), b: d.toLocaleDateString("en", { month: "short" }), B: d.toLocaleDateString("en", { month: "long" }), "%": "%" };
+  map.R = map.H + ":" + map.M; map.T = map.R + ":" + map.S; map.r = map.I + ":" + map.M + ":" + map.S + " " + map.p; map.D = map.m + "/" + map.d + "/" + String(map.Y).slice(2); map.F = map.Y + "-" + map.m + "-" + map.d;
+  return String(f).replace(/%-?([A-Za-z%])/g, (m, k) => map[k] ?? m);
+}
+function verFmt(c, raw) {
+  const [major, minor, patch] = raw.split(".");
+  return String(c.version_format || "v${raw}").replace(/\$\{?(raw|major|minor|patch)\}?/g, (m, k) => ({ raw, major, minor: minor || "", patch: patch || "" })[k]);
+}
+
+// Returns { vars } or { hide: "reason" }
+function sampleVars(name, c) {
+  const s = scen; const base = name.split(".")[0];
+  const v = Object.assign({}, EXTRA[name] || {});
+  const needGit = () => s.git ? null : "Hidden: not inside a git repo in this scenario.";
+  switch (base) {
+    case "username":
+      if (!(c.show_always || s.ssh || s.root)) return { hide: "Hidden: Starship shows the username only over SSH or as root. Set show_always = true to always show it." };
+      v.user = s.root ? "root" : "jon"; v.style = s.root ? c.style_root : c.style_user; break;
+    case "hostname":
+      if (c.ssh_only !== false && !s.ssh) return { hide: "Hidden: shown only over SSH (ssh_only = true). Turn on SSH above, or set ssh_only = false." };
+      v.hostname = "minibox"; v.ssh_symbol = s.ssh ? c.ssh_symbol : ""; break;
+    case "localip":
+      if (c.ssh_only !== false && !s.ssh) return { hide: "Hidden: shown only over SSH (ssh_only = true)." }; break;
+    case "directory": {
+      let path = s.git && c.truncate_to_repo !== false ? "dotfiles/starship" : (c.home_symbol ?? "~") + "/code/dotfiles/starship";
+      if (isObj(c.substitutions)) for (const [a, b] of Object.entries(c.substitutions)) path = path.split(a).join(b);
+      const parts = path.split("/"); const n = +c.truncation_length;
+      if (n > 0 && parts.length > n) path = (c.truncation_symbol || "") + parts.slice(-n).join("/");
+      v.path = path; v.read_only = ""; break;
+    }
+    case "git_branch": { const h = needGit(); if (h) return { hide: h };
+      const n = +c.truncation_length; let b = "main"; if (n > 0 && b.length > n) b = b.slice(0, n) + (c.truncation_symbol ?? "…");
+      v.branch = b; v.remote_branch = c.always_show_remote ? "main" : ""; v.remote_name = c.always_show_remote ? "origin" : ""; break; }
+    case "git_commit": { const h = needGit(); if (h) return { hide: h };
+      if (c.only_detached !== false) return { hide: "Hidden: shows only on a detached HEAD (only_detached = true)." };
+      v.hash = "4f2a9c1e".slice(0, +c.commit_hash_length || 7); v.tag = ""; break; }
+    case "git_state": { const h = needGit(); if (h) return { hide: h }; return { hide: "Hidden: appears only during a rebase, merge, cherry-pick or bisect." }; }
+    case "git_metrics": case "jj_metrics": case "fossil_metrics": {
+      if (base === "git_metrics") { const h = needGit(); if (h) return { hide: h }; }
+      if (!s.dirty) return { hide: "Hidden: no uncommitted changes in this scenario." };
+      v.added = "12"; v.deleted = "3"; break; }
+    case "git_status": { const h = needGit(); if (h) return { hide: h };
+      if (s.dirty) {
+        const parts = []; const counts = { modified: 2, staged: 1, untracked: 1 };
+        for (const k of ["conflicted", "stashed", "deleted", "renamed", "modified", "typechanged", "staged", "untracked"]) if (counts[k]) parts.push(...fmtSegs(c[k], { count: String(counts[k]) }));
+        v.all_status = parts; v.ahead_behind = fmtSegs(c.ahead, { count: "1" });
+      } else { v.all_status = ""; v.ahead_behind = fmtSegs(c.up_to_date, {}); }
+      break; }
+    case "character": v.symbol = fmtSegs(s.failed ? c.error_symbol : c.success_symbol, {}); break;
+    case "cmd_duration": {
+      if (!s.long) return { hide: "Hidden: the last command was quick. Turn on “Took 12s” above." };
+      if (+c.min_time > LONG_MS) return { hide: "Hidden: 12s is under min_time." };
+      v.duration = c.show_milliseconds ? "12s340ms" : "12s"; break; }
+    case "jobs": {
+      if (!s.jobs) return { hide: "Hidden: no background jobs. Turn on “Background jobs” above." };
+      const n = 2; v.number = n >= (+c.number_threshold || 2) ? String(n) : ""; if (n < (+c.symbol_threshold || 1)) v.symbol = ""; break; }
+    case "time": v.time = strftime(c.time_format || (c.use_12hr ? "%r" : "%T"), new Date()); break;
+    case "status":
+      if (!s.failed) { if (!c.success_symbol) return { hide: "Hidden: the last command succeeded. Turn on “Last command failed” above." }; v.symbol = c.success_symbol; v.status = "0"; }
+      else { v.status = "1"; v.common_meaning = "ERROR"; v.maybe_int = "1"; v.signal_name = ""; v.signal_number = ""; }
+      break;
+    case "battery": v.symbol = c.discharging_symbol; v.percentage = "9%"; v.style = "bold red"; break;
+    case "memory_usage": v.ram = "7.4GiB/62GiB"; v.ram_pct = "12%"; v.swap = "0B/8GiB"; v.swap_pct = "0%"; break;
+    case "os": { const sy = c.symbols || {}; v.symbol = sy[s.distro] ?? sy.Linux ?? ""; v.name = s.distro; v.type = s.distro; v.version = "rolling"; v.codename = ""; v.edition = ""; break; }
+    case "shell": v.indicator = c[s.shell + "_indicator"] ?? s.shell; break;
+    case "nix_shell": v.state = c.impure_msg; break;
+    case "direnv": v.loaded = c.loaded_msg; v.allowed = c.allowed_msg; v.rc_path = "~/code/dotfiles/.envrc"; break;
+    case "mise": v.health = c.healthy_symbol; break;
+    case "sudo": if (!s.root) { /* sudo shows when credentials are cached; treat as on */ } break;
+    case "env_var": v.env_value = c.default || "$" + (c.variable || name.split(".")[1] || "VAR"); break;
+    case "custom": {
+      const cmd = String(c.command || "");
+      const m = /^\s*echo\s+(?:"([^"]*)"|'([^']*)'|(.*))\s*$/.exec(cmd);
+      v.output = m ? (m[1] ?? m[2] ?? m[3]) : (cmd ? "⟨" + cmd.split(/\s+/)[0] + " output⟩" : "⟨output⟩"); break;
+    }
+  }
+  if (CAT_OF[name] === "lang" && name !== scen.project && !(name === "cpp" && scen.project === "c")) return { hide: `Hidden: Starship only shows ${name} inside a ${name} project. Pick it under Project in the scenario bar.` };
+  if (VERS[name] && v.version === undefined) v.version = verFmt(c, VERS[name]);
+  return { vars: v };
+}
+function renderModule(name) {
+  if (name === "line_break") return { segs: state.mods.line_break?.disabled ? [] : [{ text: "\n", st: null }] };
+  const c = cfg(name);
+  if (c.disabled) return { segs: [], hide: "Disabled. Starship turns this module off by default." };
+  if (name === "fill") return { segs: [{ text: String(c.symbol ?? "."), st: parseStyle(c.style), fill: true }] };
+  const r = sampleVars(name, c);
+  if (r.hide) return { segs: [], hide: r.hide };
+  const vars = r.vars;
+  const resolve = k => {
+    if (k in vars) return vars[k];
+    if ((k === "symbol" || /style$/.test(k)) && typeof c[k] === "string") return c[k];
+    return undefined;
+  };
+  return { segs: evalNodes(parseFmt(String(c.format ?? "")), resolve, null).segs };
+}
+function referencedNames() {
+  const set = new Set();
+  for (const it of [...state.left, ...state.right]) {
+    if (it.t === "mod") set.add(it.name);
+    if (it.t === "raw") for (const m of it.fmt.matchAll(/\$\{?([A-Za-z0-9_.]+)\}?/g)) set.add(m[1]);
+  }
+  return set;
+}
+function renderItems(items) {
+  const out = []; const used = referencedNames();
+  for (const it of items) {
+    if (it.t === "mod" && it.name === "all") {
+      for (const n of DATA.order) {
+        if (used.has(n) || !M[n]) continue;
+        const enabledByUser = state.mods[n] && state.mods[n].disabled === false;
+        if (!ALL_ACTIVE.has(n) && CAT_OF[n] !== "lang" && !enabledByUser) continue;
+        out.push(...renderModule(n).segs);
+      }
+    } else if (it.t === "mod") out.push(...renderModule(it.name).segs);
+    else if (it.t === "text") out.push({ text: it.text, st: parseStyle(it.style) });
+    else if (it.t === "raw") out.push(...evalNodes(parseFmt(it.fmt), k => renderModule(k).segs, null).segs);
+  }
+  return out;
+}
+function segHTML(sg) {
+  const css = styleCss(sg.st);
+  if (sg.fill) return `<span class="fill" style="${css}">${esc(String(sg.text || " ").repeat(400))}</span>`;
+  return `<span style="${css}">${esc(sg.text)}</span>`;
+}
+function renderPreview() {
+  const T = curTheme();
+  const scr = document.getElementById("screen");
+  scr.style.background = T.bg; scr.style.color = T.fg;
+  scr.classList.toggle("alt-font", view.font === "bundled");
+  const lines = [[]];
+  const leftItems = state.left.length ? state.left : [{ t: "mod", name: "all" }];
+  for (const sg of renderItems(leftItems)) {
+    if (sg.fill) { lines[lines.length - 1].push(sg); continue; }
+    String(sg.text).split("\n").forEach((part, i) => { if (i) lines.push([]); if (part) lines[lines.length - 1].push(Object.assign({}, sg, { text: part })); });
+  }
+  const right = renderItems(state.right).map(sg => sg.fill ? sg : Object.assign({}, sg, { text: String(sg.text).replace(/\n/g, "") }));
+  let html = `<div class="tl old"><span>   Compiling prompt-lab v0.3.1 (~/code/dotfiles/starship)</span></div><div class="tl old"><span>    Finished \`release\` profile [optimized] target(s) in 12.34s</span></div>`;
+  if (state.top.add_newline !== false) html += `<div class="tl"></div>`;
+  lines.forEach((ln, i) => {
+    const last = i === lines.length - 1;
+    let h = ln.map(segHTML).join("");
+    if (last) {
+      h += `<span class="cursor" style="background:${T.fg}">&nbsp;</span>`;
+      if (right.length) h += (ln.some(s => s.fill) ? "" : `<span class="spacer"></span>`) + right.map(segHTML).join("");
+    }
+    html += `<div class="tl">${h}</div>`;
+  });
+  scr.innerHTML = html;
+  document.getElementById("term-title").textContent = `${scen.root ? "root" : "jon"}@minibox: ~/code/dotfiles/starship`;
+}
+
+/* ---------- format <-> items ---------- */
+const fmtEsc = t => t.replace(/[\\\[\]()$]/g, m => "\\" + m);
+function itemPiece(it) {
+  if (it.t === "mod") return it.name === "all" ? "$all" : /^[A-Za-z0-9_]+$/.test(it.name) ? "$" + it.name : "${" + it.name + "}";
+  if (it.t === "text") return it.style ? `[${fmtEsc(it.text)}](${it.style})` : fmtEsc(it.text);
+  return it.fmt;
+}
+function itemsToPieces(items) {
+  const ps = items.map(itemPiece);
+  for (let i = 0; i < ps.length - 1; i++) if (/^\$[A-Za-z0-9_]+$/.test(ps[i]) && /^[A-Za-z0-9_]/.test(ps[i + 1])) ps[i] = "${" + ps[i].slice(1) + "}";
+  return ps;
+}
+function fmtToItems(s) {
+  const items = [];
+  for (const nd of parseFmt(String(s))) {
+    if (nd.t === "text") nd.v.split("\n").forEach((part, i) => { if (i) items.push({ id: nid(), t: "mod", name: "line_break" }); if (part) items.push({ id: nid(), t: "text", text: part, style: "" }); });
+    else if (nd.t === "var") items.push({ id: nid(), t: "mod", name: nd.name });
+    else if (nd.t === "group" && nd.children.every(c => c.t === "text") && !nd.children.some(c => c.v.includes("\n"))) items.push({ id: nid(), t: "text", text: nd.children.map(c => c.v).join(""), style: nd.style });
+    else items.push({ id: nid(), t: "raw", fmt: s.slice(nd.s, nd.e) });
+  }
+  // merge adjacent unstyled text
+  const merged = [];
+  for (const it of items) { const p = merged[merged.length - 1]; if (p && p.t === "text" && it.t === "text" && !p.style && !it.style) p.text += it.text; else merged.push(it); }
+  return merged;
+}
+
+/* ---------- TOML ---------- */
+function parseTOML(src) {
+  const root = {}; let cur = root; let i = 0; const n = src.length;
+  const line = () => src.slice(0, i).split("\n").length;
+  const fail = m => { throw new Error(`Line ${line()}: ${m}`); };
+  const ws = () => { while (i < n && (src[i] === " " || src[i] === "\t")) i++; };
+  const comment = () => { if (src[i] === "#") while (i < n && src[i] !== "\n") i++; };
+  const wsnl = () => { for (;;) { ws(); comment(); if (src[i] === "\n" || src[i] === "\r") { i++; continue; } break; } };
+  const escMap = { b: "\b", t: "\t", n: "\n", f: "\f", r: "\r", '"': '"', "\\": "\\", e: "\x1b" };
+  function basic(multi) {
+    let out = "";
+    if (multi) { if (src[i] === "\r") i++; if (src[i] === "\n") i++; }
+    for (;;) {
+      if (i >= n) fail("unterminated string");
+      const c = src[i];
+      if (multi ? src.startsWith('"""', i) : c === '"') {
+        if (multi) { let q = 3; while (src[i + q] === '"' && q < 5) q++; out += '"'.repeat(q - 3); i += q; } else i++;
+        return out;
+      }
+      if (!multi && c === "\n") fail("newline in string");
+      if (c === "\\") {
+        const d = src[i + 1];
+        if (multi && /[ \t\r\n]/.test(d)) { let j = i + 1; while (j < n && /[ \t]/.test(src[j])) j++; if (src[j] === "\r" || src[j] === "\n") { i = j; while (i < n && /[ \t\r\n]/.test(src[i])) i++; continue; } }
+        if (d === "u" || d === "U") { const len = d === "u" ? 4 : 8; out += String.fromCodePoint(parseInt(src.substr(i + 2, len), 16)); i += 2 + len; continue; }
+        if (d in escMap) { out += escMap[d]; i += 2; continue; }
+        fail("bad escape \\" + d);
+      }
+      out += c; i++;
+    }
+  }
+  function literal(multi) {
+    if (multi) { if (src[i] === "\r") i++; if (src[i] === "\n") i++; const j = src.indexOf("'''", i); if (j < 0) fail("unterminated string"); let k = j + 3, extra = 0; while (src[k] === "'" && extra < 2) { k++; extra++; } const out = src.slice(i, j) + "'".repeat(extra); i = k; return out; }
+    const j = src.indexOf("'", i); if (j < 0 || src.slice(i, j).includes("\n")) fail("unterminated string"); const out = src.slice(i, j); i = j + 1; return out;
+  }
+  function key() {
+    const parts = [];
+    for (;;) {
+      ws();
+      if (src[i] === '"') { i++; parts.push(basic(false)); }
+      else if (src[i] === "'") { i++; parts.push(literal(false)); }
+      else { const m = /^[A-Za-z0-9_-]+/.exec(src.slice(i, i + 200)); if (!m) fail("expected a key"); parts.push(m[0]); i += m[0].length; }
+      ws(); if (src[i] === ".") { i++; continue; } return parts;
+    }
+  }
+  function value() {
+    ws();
+    if (src.startsWith('"""', i)) { i += 3; return basic(true); }
+    if (src[i] === '"') { i++; return basic(false); }
+    if (src.startsWith("'''", i)) { i += 3; return literal(true); }
+    if (src[i] === "'") { i++; return literal(false); }
+    if (src.startsWith("true", i)) { i += 4; return true; }
+    if (src.startsWith("false", i)) { i += 5; return false; }
+    if (src[i] === "[") {
+      i++; const arr = [];
+      for (;;) { wsnl(); if (src[i] === "]") { i++; return arr; } arr.push(value()); wsnl(); if (src[i] === ",") { i++; continue; } wsnl(); if (src[i] === "]") { i++; return arr; } fail("expected , or ] in array"); }
+    }
+    if (src[i] === "{") {
+      i++; const obj = {}; ws(); if (src[i] === "}") { i++; return obj; }
+      for (;;) { const k = key(); if (src[i] !== "=") fail("expected ="); i++; setPath(obj, k, value()); ws(); if (src[i] === ",") { i++; continue; } if (src[i] === "}") { i++; return obj; } fail("expected , or } in inline table"); }
+    }
+    const m = /^[^\s,\]}#]+/.exec(src.slice(i, i + 100)); if (!m) fail("expected a value");
+    i += m[0].length; const t = m[0].replace(/_/g, "");
+    if (/^[+-]?(inf|nan)$/.test(t)) return t.includes("nan") ? NaN : (t[0] === "-" ? -Infinity : Infinity);
+    if (/^0x[0-9a-f]+$/i.test(t)) return parseInt(t, 16);
+    if (/^0o[0-7]+$/i.test(t)) return parseInt(t.slice(2), 8);
+    if (/^0b[01]+$/i.test(t)) return parseInt(t.slice(2), 2);
+    if (/^[+-]?\d+$/.test(t)) { const v = Number(t); return Number.isSafeInteger(v) ? v : (v < 0 ? -Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER); }
+    if (/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(t)) return Number(t);
+    return m[0]; // dates and times: keep text
+  }
+  function setPath(obj, parts, v) {
+    let o = obj; for (let k = 0; k < parts.length - 1; k++) { if (!isObj(o[parts[k]])) o[parts[k]] = {}; o = o[parts[k]]; }
+    o[parts[parts.length - 1]] = v;
+  }
+  for (;;) {
+    wsnl(); if (i >= n) break;
+    if (src[i] === "[") {
+      const arr = src[i + 1] === "["; i += arr ? 2 : 1;
+      const parts = key(); if (src[i] !== "]") fail("expected ]"); i += arr ? 2 : 1;
+      let o = root;
+      for (let k = 0; k < parts.length; k++) {
+        const p = parts[k]; const lastP = k === parts.length - 1;
+        if (lastP && arr) { if (!Array.isArray(o[p])) o[p] = []; const t = {}; o[p].push(t); o = t; }
+        else { if (Array.isArray(o[p])) o = o[p][o[p].length - 1]; else { if (!isObj(o[p])) o[p] = {}; o = o[p]; } }
+      }
+      cur = o;
+    } else {
+      const k = key(); if (src[i] !== "=") fail(`expected = after ${k.join(".")}`); i++;
+      setPath(cur, k, value());
+    }
+    ws(); comment();
+    if (i < n && src[i] !== "\n" && src[i] !== "\r") fail("unexpected text after value");
+  }
+  return root;
+}
+const basicEsc = s => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, c => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
+function tstr(s) { return /['\x00-\x08\x0a-\x1f\x7f]/.test(s) ? '"' + basicEsc(s) + '"' : "'" + s + "'"; }
+function tval(v) {
+  if (typeof v === "string") return tstr(v);
+  if (typeof v === "boolean") return String(v);
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : (Number.isNaN(v) ? "nan" : v > 0 ? "inf" : "-inf");
+  if (Array.isArray(v)) return "[" + v.map(tval).join(", ") + "]";
+  if (isObj(v)) return "{ " + Object.entries(v).map(([k, x]) => tkey(k) + " = " + tval(x)).join(", ") + " }";
+  return "''";
+}
+const tkey = k => /^[A-Za-z0-9_-]+$/.test(k) ? k : '"' + basicEsc(k) + '"';
+function tFormat(items) {
+  const ps = itemsToPieces(items); const flat = ps.join("");
+  if (!flat) return "''";
+  if (ps.length <= 4 && flat.length <= 64 && !/['\x00-\x1f\x7f]/.test(flat)) return "'" + flat + "'";
+  let out = '"""\n';
+  ps.forEach((p, k) => { const e = basicEsc(p); out += k === 0 || /^[ \t]/.test(p) ? e : "\\\n" + e; });
+  return out + '\\\n"""';
+}
+const KEY_ORDER = k => k === "disabled" ? 0 : k === "format" ? 1 : /symbol$/.test(k) || k === "symbol" ? 2 : /style/.test(k) ? 3 : 4;
+function emitTable(lines, path, obj) {
+  const keys = Object.keys(obj);
+  const scal = keys.filter(k => !isObj(obj[k]) && !(Array.isArray(obj[k]) && obj[k].length && obj[k].every(isObj))).sort((a, b) => KEY_ORDER(a) - KEY_ORDER(b));
+  const arrT = keys.filter(k => Array.isArray(obj[k]) && obj[k].length && obj[k].every(isObj));
+  const subs = keys.filter(k => isObj(obj[k]));
+  if (scal.length || (!subs.length && !arrT.length)) { lines.push(`[${path}]`); for (const k of scal) lines.push(`${tkey(k)} = ${tval(obj[k])}`); lines.push(""); }
+  for (const k of subs) emitTable(lines, path + "." + tkey(k), obj[k]);
+  for (const k of arrT) for (const t of obj[k]) { lines.push(`[[${path}.${tkey(k)}]]`); for (const [a, b] of Object.entries(t)) lines.push(`${tkey(a)} = ${tval(b)}`); lines.push(""); }
+}
+function moduleTable(name, placed) {
+  const o = state.mods[name] || {}; const out = {};
+  const nf = modDef(name).nf;
+  if (state.nf && placed && nf) for (const k in nf) {
+    if (k === "symbols") { const d = scen.distro; if (nf.symbols[d] != null && !(o.symbols && d in o.symbols)) out.symbols = { [d]: nf.symbols[d] }; }
+    else if (!(k in o)) out[k] = nf[k];
+  }
+  for (const k in o) out[k] = isObj(o[k]) ? Object.assign({}, out[k], o[k]) : o[k];
+  return out;
+}
+const TOP_TABLE_PATH = n => n.startsWith("custom.") ? "custom." + tkey(n.slice(7)) : n.startsWith("env_var.") ? "env_var." + tkey(n.slice(8)) : tkey(n);
+function buildToml() {
+  const L = [`"$schema" = 'https://starship.rs/config-schema.json'`, ""];
+  const tops = Object.entries(state.top).filter(([k]) => k !== "palette");
+  for (const [k, v] of tops) L.push(`${tkey(k)} = ${tval(v)}`);
+  if (state.left.length) L.push(`format = ${tFormat(state.left)}`);
+  if (state.right.length) L.push(`right_format = ${tFormat(state.right)}`);
+  if (state.top.palette) L.push(`palette = ${tval(state.top.palette)}`);
+  if (L.length > 2) L.push("");
+  for (const [k, v] of Object.entries(state.extra)) { if (isObj(v)) { for (const [sk, sv] of Object.entries(v)) isObj(sv) ? emitTable(L, tkey(k) + "." + tkey(sk), sv) : null; const sc = Object.fromEntries(Object.entries(v).filter(([, x]) => !isObj(x))); if (Object.keys(sc).length) emitTable(L, tkey(k), sc); } else L.splice(2, 0, `${tkey(k)} = ${tval(v)}`); }
+  const used = referencedNames(); const hasAll = used.has("all") || !state.left.length;
+  const order = [];
+  for (const it of [...state.left, ...state.right]) {
+    const names = it.t === "mod" ? [it.name] : it.t === "raw" ? [...it.fmt.matchAll(/\$\{?([A-Za-z0-9_.]+)\}?/g)].map(m => m[1]) : [];
+    for (const nm of names) if (nm !== "all" && !order.includes(nm)) order.push(nm);
+  }
+  if (hasAll) for (const nm of DATA.order) if (M[nm] && !order.includes(nm)) order.push(nm);
+  const emitted = new Set();
+  for (const nm of order) { const t = moduleTable(nm, true); if (Object.keys(t).length) { emitTable(L, TOP_TABLE_PATH(nm), t); emitted.add(nm); } }
+  const rest = Object.keys(state.mods).filter(nm => !emitted.has(nm) && Object.keys(state.mods[nm]).length).sort();
+  if (rest.length) {
+    L.push("# Configured, but not used in format or right_format", "");
+    for (const nm of rest) emitTable(L, TOP_TABLE_PATH(nm), moduleTable(nm, false));
+  }
+  while (L[L.length - 1] === "") L.pop();
+  return L.join("\n") + "\n";
+}
+function applyConfig(obj) {
+  const st = { left: [], right: [], mods: {}, top: {}, extra: {}, nf: false };
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "$schema") continue;
+    if (k === "format") st.left = fmtToItems(String(v));
+    else if (k === "right_format") st.right = fmtToItems(String(v));
+    else if (k === "custom" && isObj(v)) for (const [ck, cv] of Object.entries(v)) st.mods["custom." + ck] = cv;
+    else if (k === "env_var" && isObj(v)) { if (Object.values(v).every(isObj)) for (const [ek, ev] of Object.entries(v)) st.mods["env_var." + ek] = ev; else st.mods.env_var = v; }
+    else if (isObj(v) && M[k]) st.mods[k] = v;
+    else if (isObj(v) || Array.isArray(v)) st.extra[k] = v;
+    else st.top[k] = v;
+  }
+  if (!("format" in obj)) st.left = [{ id: nid(), t: "mod", name: "all" }];
+  return st;
+}
+
+/* ---------- rendering: shelf, lanes, inspector, output ---------- */
+function symOf(name) {
+  if (name === "all" || name === "line_break") return "";
+  const c = M[name] || name.startsWith("custom.") ? cfg(name) : null; if (!c) return "";
+  let s = name === "os" ? ((c.symbols || {})[scen.distro] || "") : name === "character" ? "❯" : name === "battery" ? c.discharging_symbol : name === "hostname" ? c.ssh_symbol : c.symbol;
+  s = String(s || "").replace(/\[|\]\([^)]*\)/g, "").trim();
+  return /[^\x00-\x7f]/.test(s) && [...s].length <= 3 ? s : "";
+}
+function renderShelf() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const used = referencedNames();
+  const match = (n, d) => !q || n.includes(q) || (d || "").toLowerCase().includes(q);
+  let html = "";
+  const blocks = BLOCKS.filter(b => match(b.label.toLowerCase(), b.name));
+  if (blocks.length) {
+    html += `<details class="cat k-block" open><summary><span class="label">Building blocks</span><span class="count">${blocks.length}</span></summary><ul class="pal-list" data-pal="1">`;
+    BLOCKS.forEach((b, i) => { if (!blocks.includes(b)) return;
+      const sym = b.kind === "text" ? b.text.trim() : "";
+      html += `<li class="pal k-block" data-block="${i}" tabindex="0" title="${esc(b.label)}"><span class="dot"></span><span class="nm">${esc(b.label)}</span>${sym ? `<span class="sym">${esc(sym)}</span>` : ""}<button class="add" data-act="add-block" data-block="${i}" aria-label="Add ${esc(b.label)}">+</button></li>`; });
+    html += `</ul></details>`;
+  }
+  for (const [k, label, list] of CATS) {
+    const items = list.filter(n => M[n] && match(n, M[n].desc));
+    if (!items.length) continue;
+    const open = q || k !== "lang" ? " open" : "";
+    html += `<details class="cat k-${k}"${open}><summary><span class="label">${esc(label)}</span><span class="count">${items.length}</span></summary><ul class="pal-list" data-pal="1">`;
+    for (const n of items) {
+      const sym = symOf(n);
+      html += `<li class="pal k-${k}" data-mod="${n}" tabindex="0" title="${esc(M[n].desc)}"><span class="dot"></span><span class="nm">${n}</span>${sym ? `<span class="sym">${esc(sym)}</span>` : ""}${used.has(n) ? `<span class="used">in use</span>` : ""}<button class="add" data-act="add-mod" data-mod="${n}" aria-label="Add ${n}">+</button></li>`;
+    }
+    html += `</ul></details>`;
+  }
+  if (!html) html = `<p class="hint" style="padding:8px">No module matches “${esc(q)}”.</p>`;
+  const el = document.getElementById("shelf");
+  const openState = {}; el.querySelectorAll("details.cat").forEach(d => openState[d.querySelector(".label").textContent] = d.open);
+  el.innerHTML = html;
+  if (!q) el.querySelectorAll("details.cat").forEach(d => { const l = d.querySelector(".label").textContent; if (l in openState) d.open = openState[l]; });
+  el.querySelectorAll(".pal-list").forEach(list => Sortable.create(list, {
+    group: { name: "prompt", pull: "clone", put: false }, sort: false, animation: 120, filter: ".add", preventOnFilter: false,
+    onStart: () => { dragging = true; },
+    onEnd: evt => { dragging = false; justDragged = Date.now();
+      if (evt.to === evt.from) return;
+      const lane = evt.to.dataset.lane; const idx = chipIndex(evt.item); evt.item.remove();
+      if (lane) insertFromShelf(evt.item.dataset, lane, idx);
+    },
+  }));
+}
+function chipHTML(it) {
+  const s = sel === it.id ? " sel" : "";
+  if (it.t === "text") {
+    const shown = it.text === " " ? "␣" : it.text;
+    return `<button class="chip txt k-block${s}" data-id="${it.id}" title="Text: ${esc(JSON.stringify(it.text))}${it.style ? " · " + esc(it.style) : ""}"><span class="tx" style="${styleCss(parseStyle(it.style))};${!parseStyle(it.style) ? "background:" + curTheme().bg + ";color:" + curTheme().fg : ""}">${esc(shown)}</span></button>`;
+  }
+  if (it.t === "raw") return `<button class="chip raw k-block${s}" data-id="${it.id}" title="Format snippet"><span class="dot"></span><code>${esc(it.fmt)}</code></button>`;
+  const n = it.name;
+  if (n === "line_break") return `<button class="chip nl k-block${s}" data-id="${it.id}"><span class="sym">↵</span><span class="nm">line_break</span></button><span class="lb"></span>`;
+  if (n === "all") return `<button class="chip k-block${s}" data-id="${it.id}" title="Every other module, in Starship's default order"><span class="dot"></span><span class="nm">$all</span><span class="tag">rest</span></button>`;
+  const c = cfg(n); const r = renderModule(n); const sym = symOf(n);
+  const off = c.disabled ? " off" : ""; const ghost = !c.disabled && r.hide ? " ghost" : "";
+  return `<button class="chip k-${catOf(n)}${s}${off}${ghost}" data-id="${it.id}" title="${esc(r.hide || modDef(n).desc || n)}"><span class="dot"></span><span class="nm">${esc(n)}</span>${sym ? `<span class="sym">${esc(sym)}</span>` : ""}${c.disabled ? `<span class="tag">off</span>` : r.hide ? `<span class="tag">hidden</span>` : ""}</button>`;
+}
+function renderLanes() {
+  for (const lane of ["left", "right"]) {
+    const el = document.getElementById("lane-" + lane);
+    el.innerHTML = state[lane].map(chipHTML).join("");
+  }
+}
+const findItem = id => { for (const lane of ["left", "right"]) { const i = state[lane].findIndex(x => x.id === id); if (i >= 0) return { lane, i, it: state[lane][i] }; } return null; };
+
+function fieldWrap(key, changed, inner, help, resetAttr) {
+  return `<div class="field"><div class="field-top"><label for="f-${esc(key)}">${esc(key)}</label>${changed ? `<span class="chg" title="Changed from default"></span><button class="reset" data-act="${resetAttr || "reset-opt"}" data-key="${esc(key)}">Reset</button>` : ""}</div>${inner}${help ? `<div class="help">${esc(help.replace(/`/g, ""))}</div>` : ""}</div>`;
+}
+function styleEditor(key, val) {
+  const st = parseStyle(val) || {};
+  const sw = c => { const r = resolveColor(c); return r ? `style="background:${r}"` : ""; };
+  const mods = [["bold", "B", "font-weight:700"], ["italic", "I", "font-style:italic"], ["underline", "U", "text-decoration:underline"], ["dimmed", "D", "opacity:.6"], ["inverted", "⇄", ""]];
+  return `<div class="style-ed" data-style-key="${esc(key)}">
+    <button class="sw-btn" data-act="pick-color" data-which="fg" data-key="${esc(key)}"><span class="sw" ${sw(st.fg)}></span>${esc(st.fg || "text")}</button>
+    <button class="sw-btn" data-act="pick-color" data-which="bg" data-key="${esc(key)}"><span class="sw" ${sw(st.bg)}></span>${esc(st.bg ? "bg " + st.bg : "background")}</button>
+    ${mods.map(([m, l, css]) => `<button class="mod-btn" data-act="toggle-mod" data-mod="${m}" data-key="${esc(key)}" aria-pressed="${!!st[m]}" title="${m}" style="${css}">${l}</button>`).join("")}
+  </div>`;
+}
+const isStyleKey = k => /style/.test(k);
+const isNum = v => typeof v === "number";
+function moduleFields(name) {
+  const def = modDef(name), c = cfg(name), b = baseCfg(name), o = state.mods[name] || {};
+  const keys = [...new Set([...Object.keys(def.d), ...Object.keys(o)])].filter(k => k !== "disabled" && k !== "symbols" && !isObj(c[k]) && !Array.isArray(c[k]));
+  const look = [], behave = [];
+  for (const k of keys) {
+    const v = c[k], changed = k in o, help = (def.opts || {})[k];
+    let inner;
+    if (typeof v === "boolean") { inner = `<label class="check"><input type="checkbox" id="f-${esc(k)}" data-opt="${esc(k)}" data-type="bool" ${v ? "checked" : ""}> ${v ? "true" : "false"}</label>`; behave.push(fieldWrap(k, changed, inner, help)); continue; }
+    if (isNum(v)) { inner = `<input class="inp mono" type="number" id="f-${esc(k)}" data-opt="${esc(k)}" data-type="num" value="${esc(v)}">`; behave.push(fieldWrap(k, changed, inner, help)); continue; }
+    const sv = v == null ? "" : String(v);
+    if (k === "format") inner = `<textarea class="inp" id="f-format" data-opt="format" spellcheck="false" rows="2">${esc(sv)}</textarea>`;
+    else if (isStyleKey(k)) inner = `<input class="inp mono" id="f-${esc(k)}" data-opt="${esc(k)}" value="${esc(sv)}" spellcheck="false">${styleEditor(k, sv)}`;
+    else inner = `<div class="inp-row"><input class="inp" id="f-${esc(k)}" data-opt="${esc(k)}" value="${esc(sv)}" spellcheck="false"><button class="icon-btn" data-act="pick-glyph" data-target="f-${esc(k)}" title="Pick a Nerd Font icon" aria-label="Pick a Nerd Font icon">\uf013</button></div>`;
+    (k === "format" || isStyleKey(k) || /symbol/.test(k) ? look : behave).push(fieldWrap(k, changed, inner, help));
+  }
+  if (name === "os") {
+    const d = scen.distro, sv = (c.symbols || {})[d] ?? "", changed = !!(o.symbols && d in o.symbols);
+    look.splice(1, 0, fieldWrap(`symbols.${d}`, changed, `<div class="inp-row"><input class="inp" id="f-symbols.${esc(d)}" data-sub="symbols" data-subkey="${esc(d)}" value="${esc(sv)}"><button class="icon-btn" data-act="pick-glyph" data-target="f-symbols.${esc(d)}" aria-label="Pick a Nerd Font icon" title="Pick a Nerd Font icon">\uf013</button></div>`, `Symbol for ${d}. Change the OS in the scenario bar to edit another one.`, "reset-sub"));
+  }
+  if (name === "directory" && isObj(c.substitutions) && Object.keys(c.substitutions).length) {
+    behave.push(`<div class="field"><div class="field-top"><label>substitutions</label></div><div class="help">${Object.entries(c.substitutions).map(([a, bb]) => `${esc(a)} → <span style="font-family:var(--f-term)">${esc(bb)}</span>`).join(" · ")}</div></div>`);
+  }
+  return `<div class="group-h"><span class="label">Look</span></div>${look.join("")}${behave.length ? `<details class="more"${behave.length <= 3 ? " open" : ""}><summary>Behavior options (${behave.length})</summary><div class="fields">${behave.join("")}</div></details>` : ""}`;
+}
+function itemActions(f) {
+  const other = f.lane === "left" ? "right prompt" : "left prompt";
+  return `<div class="actions">
+    <button class="btn small" data-act="move" data-d="-1" ${f.i === 0 ? "disabled" : ""}>← Move</button>
+    <button class="btn small" data-act="move" data-d="1" ${f.i === state[f.lane].length - 1 ? "disabled" : ""}>Move →</button>
+    <button class="btn small" data-act="swap-lane">To ${other}</button>
+    <button class="btn small" data-act="dup">Duplicate</button>
+    <button class="btn small danger" data-act="remove">Remove</button>
+  </div>`;
+}
+function renderInspector() {
+  const el = document.getElementById("insp");
+  const f = sel ? findItem(sel) : null;
+  if (!f) {
+    el.innerHTML = `<div class="panel-h"><span class="label">Inspector</span></div><div class="empty-insp">
+      <p class="desc" style="color:var(--ink)">Click a chip in a prompt lane to edit its symbol, colors and format.</p>
+      <ol><li>Drag modules from the shelf into the left or right prompt.</li><li>Flip the scenario toggles to see how the prompt reacts.</li><li>Copy the starship.toml below into ~/.config/starship.toml.</li></ol>
+      <p class="hint">Keyboard: select a chip, then Alt+←/→ moves it and Delete removes it.</p></div>`;
+    return;
+  }
+  const it = f.it; let body = "";
+  if (it.t === "mod" && it.name === "all") {
+    body = `<div class="insp-title"><h2>$all</h2><a href="https://starship.rs/config/#default-prompt-format" target="_blank" rel="noopener">Docs ↗</a></div><p class="desc">Every module you haven't placed yourself, in Starship's default order. Modules you place elsewhere aren't repeated.</p>${itemActions(f)}`;
+  } else if (it.t === "mod") {
+    const n = it.name, def = modDef(n), c = cfg(n), r = renderModule(n);
+    const docs = def.h ? `<a href="https://starship.rs/config/#${esc(def.h)}" target="_blank" rel="noopener">Docs ↗</a>` : "";
+    let note = "";
+    if (c.disabled) note = `<div class="notice"><span>This module is off${def.d.disabled ? " by default in Starship" : ""}.</span><button class="btn small primary" data-act="enable">Turn on</button></div>`;
+    else if (r.hide) note = `<div class="notice quiet">${esc(r.hide)}</div>`;
+    const disableToggle = n === "line_break" || n === "fill" || n.startsWith("custom.") || n.startsWith("env_var") || M[n] ? `<label class="check"><input type="checkbox" id="f-disabled" data-opt="disabled" data-type="bool" ${c.disabled ? "checked" : ""}> disabled</label>` : "";
+    body = `<div class="insp-title"><span class="dot" style="background:var(--c-${catOf(n)})"></span><h2>${esc(n)}</h2>${docs}</div><p class="desc">${esc((def.desc || "").replace(/`/g, ""))}</p>${note}${itemActions(f)}${n === "line_break" ? disableToggle : moduleFields(n) + disableToggle}`;
+  } else if (it.t === "text") {
+    body = `<div class="insp-title"><h2>Text</h2></div><p class="desc">Literal text in the format string. Use it for separators, powerline arrows and labels.</p>${itemActions(f)}
+      <div class="field"><div class="field-top"><label for="f-text">text</label></div><div class="inp-row"><input class="inp" id="f-text" data-item="text" value="${esc(it.text)}" spellcheck="false"><button class="icon-btn" data-act="pick-glyph" data-target="f-text" aria-label="Pick a Nerd Font icon" title="Pick a Nerd Font icon">\uf013</button></div>
+      <div class="quick">${[PL.r, PL.rr, PL.sl, PL.l, PL.rl, PL.sr, "\ue0b1", "\ue0b5", "│", "·", "░▒▓"].map(g => `<button data-act="set-text" data-text="${esc(g)}" title="U+${g.codePointAt(0).toString(16).toUpperCase()}">${esc(g)}</button>`).join("")}</div></div>
+      <div class="field"><div class="field-top"><label for="f-tstyle">style</label></div><input class="inp mono" id="f-tstyle" data-item="style" value="${esc(it.style)}" spellcheck="false" placeholder="e.g. fg:#9A348E bg:#DA627D">${styleEditor("__text", it.style)}
+      <div class="actions" style="margin-top:4px"><button class="btn small" data-act="fit">Match colors to neighbors</button></div>
+      <div class="help">Sets the separator's colors from the backgrounds of the modules on either side, which is how powerline segments join.</div></div>`;
+  } else {
+    body = `<div class="insp-title"><h2>Format snippet</h2></div><p class="desc">A piece of the format string that mixes text and modules. Edit it directly.</p>${itemActions(f)}
+      <div class="field"><div class="field-top"><label for="f-raw">format</label></div><textarea class="inp" id="f-raw" data-item="fmt" spellcheck="false">${esc(it.fmt)}</textarea></div>`;
+  }
+  el.innerHTML = `<div class="panel-h"><span class="label">Inspector</span><button class="btn small ghost" style="margin-left:auto" data-act="deselect">Close</button></div><div class="insp-body">${body}</div>`;
+}
+function highlightToml(t) {
+  return t.split("\n").map(line => {
+    if (/^\s*#/.test(line)) return `<span class="c">${esc(line)}</span>`;
+    if (/^\s*\[/.test(line)) return `<span class="h">${esc(line)}</span>`;
+    const m = /^(\s*[^=]+?)(\s*=\s*)(.*)$/.exec(line);
+    if (!m) return esc(line).replace(/[\ue000-\uf8ff]|[\udb80-\udbff][\udc00-\udfff]/g, g => `<span class="g">${g}</span>`);
+    const val = m[3]; const cls = /^['"]/.test(val) ? "s" : "v";
+    const vh = esc(val).replace(/[\ue000-\uf8ff]|[\udb80-\udbff][\udc00-\udfff]/g, g => `<span class="g">${g}</span>`);
+    return `<span class="k">${esc(m[1])}</span>${esc(m[2])}<span class="${cls}">${vh}</span>`;
+  }).join("\n");
+}
+let tomlText = "";
+function renderOutput() { tomlText = buildToml(); document.getElementById("toml").innerHTML = highlightToml(tomlText); }
+function renderScen() {
+  const t = (k, label) => `<button class="tog" data-scen="${k}" aria-pressed="${!!scen[k]}">${label}</button>`;
+  const distros = ["CachyOS", "Arch", "EndeavourOS", "Fedora", "Ubuntu", "Debian", "NixOS", "Pop", "Macos", "Windows"];
+  document.getElementById("scen").innerHTML = `<span class="label">Scenario</span>${t("git", "Git repo")}${t("dirty", "Uncommitted changes")}${t("failed", "Last command failed")}${t("long", "Took 12s")}${t("jobs", "Background jobs")}${t("ssh", "Over SSH")}${t("root", "Root")}
+    <select id="distro" aria-label="Operating system">${distros.map(d => `<option ${d === scen.distro ? "selected" : ""}>${d}</option>`).join("")}</select>
+    <select id="project" aria-label="Project type">${projectOptions().map(d => `<option value="${d}" ${d === scen.project ? "selected" : ""}>${d === "none" ? "No project" : d + " project"}</option>`).join("")}</select>
+    <select id="shell" aria-label="Shell">${["zsh", "bash", "fish", "nu"].map(d => `<option value="${d}" ${d === scen.shell ? "selected" : ""}>${d}</option>`).join("")}</select>`;
+}
+function projectOptions() {
+  const set = new Set(["nodejs", "python", "rust", "golang"]);
+  for (const n of referencedNames()) if (CAT_OF[n] === "lang") set.add(n);
+  if (CAT_OF[scen.project] === "lang") set.add(scen.project);
+  return [...set, "none"];
+}
+function renderTop() {
+  document.getElementById("undo").disabled = !hist.undo.length;
+  document.getElementById("redo").disabled = !hist.redo.length;
+  document.getElementById("nf").checked = !!state.nf;
+}
+function save() { try { localStorage.setItem("spb:v1", JSON.stringify({ state: JSON.parse(snapshot()), scen, view })); } catch (e) {} }
+function afterChange(full) {
+  renderPreview(); renderLanes(); renderOutput(); renderTop();
+  if (full) { renderInspector(); renderShelf(); renderScen(); }
+  save();
+}
+
+/* ---------- mutations ---------- */
+function newItemFromBlock(b) {
+  if (b.kind === "text") return { id: nid(), t: "text", text: b.text, style: b.style || "", fit: b.fit };
+  if (b.kind === "mod") return { id: nid(), t: "mod", name: b.name };
+  if (b.kind === "custom") { let k = 1; while (state.mods["custom.cmd" + k]) k++; const nm = "custom.cmd" + k; state.mods[nm] = { command: "echo 'hello'", when: true, style: "bold green" }; return { id: nid(), t: "mod", name: nm }; }
+  if (b.kind === "envvar") { let k = 1; const pick = ["EDITOR", "VIRTUAL_ENV", "AWS_PROFILE"]; let nm = "env_var." + pick[0]; while (state.mods[nm] && k < pick.length) nm = "env_var." + pick[k++]; state.mods[nm] = Object.assign({ variable: nm.slice(8), default: nm === "env_var.EDITOR" ? "nvim" : "" }, state.mods[nm]); return { id: nid(), t: "mod", name: nm }; }
+}
+function smartIndex(lane) {
+  const arr = state[lane]; if (lane === "right") return arr.length;
+  const lb = arr.findIndex(x => x.t === "mod" && (x.name === "line_break" || x.name === "fill"));
+  if (lb >= 0) return lb;
+  const ch = arr.findIndex(x => x.t === "mod" && x.name === "character");
+  return ch >= 0 ? ch : arr.length;
+}
+let toastTimer = 0;
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600); }
+function insertItem(it, lane, idx) {
+  commit();
+  if (it.t === "mod" && M[it.name] && M[it.name].d.disabled && !(state.mods[it.name] && "disabled" in state.mods[it.name])) {
+    setOpt(it.name, "disabled", false); toast(`Turned on ${it.name}, which Starship leaves off by default.`);
+  }
+  state[lane].splice(idx, 0, it);
+  if (it.t === "mod" && CAT_OF[it.name] === "lang" && scen.project !== it.name) { scen.project = it.name; renderScen(); }
+  if (it.fit) { delete it.fit; fitNeighbors(it.id, true); } else delete it.fit;
+  sel = it.id; afterChange(true);
+}
+function insertFromShelf(ds, lane, idx) {
+  const it = ds.block != null ? newItemFromBlock(BLOCKS[+ds.block]) : { id: nid(), t: "mod", name: ds.mod };
+  insertItem(it, lane, idx);
+}
+function removeItem(id) {
+  const f = findItem(id); if (!f) return; commit();
+  state[f.lane].splice(f.i, 1);
+  if (f.it.t === "mod" && !referencedNames().has(f.it.name)) { const o = state.mods[f.it.name]; if (o && eq(Object.keys(o), ["disabled"]) && o.disabled === false) delete state.mods[f.it.name]; }
+  if (sel === id) sel = null; afterChange(true);
+}
+function moveItem(id, d) { const f = findItem(id); if (!f) return; const j = f.i + d; if (j < 0 || j >= state[f.lane].length) return; commit(); const a = state[f.lane]; [a[f.i], a[j]] = [a[j], a[f.i]]; afterChange(true); focusChip(id); }
+function focusChip(id) { requestAnimationFrame(() => { const el = document.querySelector(`.chip[data-id="${id}"]`); el && el.focus(); }); }
+function bgOfItem(it) {
+  if (!it) return null;
+  if (it.t === "text") return (parseStyle(it.style) || {}).bg || null;
+  if (it.t === "mod" && it.name !== "line_break" && it.name !== "all") {
+    const c = cfg(it.name);
+    const s = parseStyle(it.name === "username" ? c.style_user : c.style); if (s && s.bg) return s.bg;
+    const m = /\(([^)]*bg:[^)]*)\)/.exec(String(c.format || "")); if (m) return (parseStyle(m[1]) || {}).bg || null;
+  }
+  return null;
+}
+function fitNeighbors(id, silent) {
+  const f = findItem(id); if (!f || f.it.t !== "text") return;
+  const arr = state[f.lane];
+  let prev = null, next = null;
+  for (let k = f.i - 1; k >= 0; k--) { if (arr[k].t === "mod" && arr[k].name === "line_break") break; const b = bgOfItem(arr[k]); if (b) { prev = b; break; } if (arr[k].t === "mod") break; }
+  for (let k = f.i + 1; k < arr.length; k++) { if (arr[k].t === "mod" && arr[k].name === "line_break") break; const b = bgOfItem(arr[k]); if (b) { next = b; break; } if (arr[k].t === "mod" && !cfg(arr[k].name).disabled && renderModule(arr[k].name).segs.length) break; }
+  const cp = f.it.text.codePointAt(0);
+  const leftPointing = [0xe0b2, 0xe0b6, 0xe0ba, 0xe0be, 0xe0c2, 0xe0c5, 0xe0c7, 0xe0d4, 0x2591].includes(cp);
+  let fg, bg;
+  if (leftPointing) { fg = next; bg = prev; } else { fg = prev; bg = next; }
+  if (!fg && !bg) { if (!silent) toast("No colored backgrounds next to this separator yet. Give a neighbor a bg: style first."); return; }
+  f.it.style = [fg && "fg:" + fg, bg && "bg:" + bg].filter(Boolean).join(" ");
+  if (!silent) toast("Matched to neighbors: " + f.it.style);
+}
+
+/* ---------- popover ---------- */
+const pop = document.getElementById("pop");
+let popTarget = null;
+function openPop(anchor, html, target, cls) {
+  popTarget = target; pop.className = "pop" + (cls ? " " + cls : ""); pop.innerHTML = html; pop.hidden = false;
+  const r = anchor.getBoundingClientRect(); const w = pop.offsetWidth;
+  let left = r.left + window.scrollX; left = Math.max(16, Math.min(left, window.scrollX + document.documentElement.clientWidth - w - 16));
+  let top = r.bottom + window.scrollY + 6;
+  const vh = document.documentElement.clientHeight, ph = pop.offsetHeight;
+  if (r.bottom + 6 + ph > vh - 16) top = Math.max(window.scrollY + 16, window.scrollY + vh - ph - 16);
+  pop.style.left = left + "px"; pop.style.top = top + "px";
+}
+function closePop() { pop.hidden = true; popTarget = null; }
+/* Nerd Font icon picker: every glyph in Nerd Fonts 3.4, searchable by name */
+const GP_SETS = [["all", "All"], ["uni", "Unicode"], ["pl", "Powerline"], ["md", "Material"], ["fa", "Font Awesome"], ["dev", "Devicons"], ["cod", "Codicons"], ["oct", "Octicons"], ["linux", "OS logos"], ["seti", "Seti"], ["weather", "Weather"], ["other", "Other"]];
+const GP_SET_OF = { pl: "pl", ple: "pl", md: "md", fa: "fa", fae: "fa", dev: "dev", cod: "cod", oct: "oct", linux: "linux", seti: "seti", weather: "weather" };
+let GLYPH_INDEX = null;
+function glyphIndex() {
+  if (GLYPH_INDEX) return GLYPH_INDEX;
+  GLYPH_INDEX = [];
+  for (const [pre, list] of Object.entries(NFDATA)) for (const ent of list.split(",")) {
+    const [nm, code] = ent.split(":");
+    GLYPH_INDEX.push({ n: "nf-" + pre + "-" + nm, k: (pre + " " + nm.replace(/_/g, " ")).toLowerCase(), s: GP_SET_OF[pre] || "other", c: code, ch: String.fromCodePoint(parseInt(code, 16)) });
+  }
+  for (const [block, list] of Object.entries(UNIDATA)) for (const ent of list.split(",")) {
+    const [code, nm] = ent.split(":");
+    GLYPH_INDEX.push({ n: nm, k: ("unicode " + block + " " + nm).toLowerCase(), s: "uni", c: code, ch: String.fromCodePoint(parseInt(code, 16)), b: block });
+  }
+  return GLYPH_INDEX;
+}
+const glyphByChar = ch => glyphIndex().find(g => g.ch === ch);
+let gpState = { q: "", set: "all" };
+function recentGlyphs() { try { return JSON.parse(localStorage.getItem("spb:recent") || "[]"); } catch (e) { return []; } }
+function rememberGlyph(ch) { try { const r = [ch, ...recentGlyphs().filter(x => x !== ch)].slice(0, 24); localStorage.setItem("spb:recent", JSON.stringify(r)); } catch (e) {} }
+function gpButton(ch, g) { g = g || glyphByChar(ch);
+  if (g && g.s === "uni") return `<button data-glyph="${esc(ch)}" data-gname="${esc(g.n)}" title="${esc(g.n)} (${esc(g.b)})">${esc(ch)}</button>`; const name = g ? g.n : "U+" + ch.codePointAt(0).toString(16).toUpperCase(); return `<button data-glyph="${esc(ch)}" data-gname="${esc(name)}" title="${esc(name)}">${esc(ch)}</button>`; }
+function gpResults() {
+  const q = gpState.q.trim().toLowerCase(), set = gpState.set;
+  if (!q && set === "all") {
+    const rec = recentGlyphs();
+    const groups = [];
+    if (rec.length) groups.push(["Recent", rec]);
+    groups.push(["Prompt symbols (Unicode, no Nerd Font needed)", PROMPT_FAVES], ["Powerline", CURATED.slice(0, 37)], ["Common", CURATED.slice(37)], ["Used by the Nerd Font preset", NF_GLYPHS]);
+    return groups.map(([h, gs]) => `<h4>${h}</h4><div class="grid">${gs.map(ch => gpButton(ch)).join("")}</div>`).join("") + `<p class="gp-more">Type to search all ${glyphIndex().length.toLocaleString()} icons, or pick a set above.</p>`;
+  }
+  if (!q && set === "uni") {
+    const byBlock = {}; for (const g of glyphIndex()) if (g.s === "uni") (byBlock[g.b] = byBlock[g.b] || []).push(g);
+    return Object.entries(byBlock).map(([b, gs]) => `<h4>${esc(b)}</h4><div class="grid">${gs.map(g => gpButton(g.ch, g)).join("")}</div>`).join("");
+  }
+  const toks = q.split(/[\s_-]+/).filter(Boolean);
+  const hexq = /^(u\+)?[0-9a-f]{4,5}$/.test(q) ? q.replace("u+", "") : null;
+  let hits = glyphIndex().filter(g => (set === "all" || g.s === set) && (hexq && g.c === hexq || toks.every(t => g.k.includes(t))));
+  if (toks.length) {
+    const score = g => { const words = g.k.split(" "); let sc = 0; for (const t of toks) { if (words.includes(t)) sc += 3; else if (words.some(w => w.startsWith(t))) sc += 2; } return sc - words.length * 0.1 + (g.s === "md" ? 0 : 0.5); };
+    hits = hits.map(g => [score(g), g]).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+  }
+  if (!hits.length) return `<p class="gp-more">No icon matches “${esc(gpState.q)}”${set !== "all" ? " in " + GP_SETS.find(x => x[0] === set)[1] : ""}. Try a shorter word, like “git” or “folder”${set !== "all" ? ", or switch to All" : ""}.</p>`;
+  const LIMIT = set === "uni" ? 1500 : 600;
+  return `<div class="grid">${hits.slice(0, LIMIT).map(g => gpButton(g.ch, g)).join("")}</div>` + `<p class="gp-more">${hits.length > LIMIT ? `Showing ${LIMIT} of ${hits.length.toLocaleString()}. Add a word to narrow it down.` : `${hits.length.toLocaleString()} match${hits.length === 1 ? "" : "es"}.`}</p>`;
+}
+function gpFoot(ch, name) {
+  const f = document.getElementById("gp-foot"); if (!f) return;
+  if (!ch) { f.innerHTML = `<span class="hint">${popTarget && popTarget.id ? "Click to insert. Shift-click inserts and keeps the picker open." : "Click an icon to copy it."}</span>`; return; }
+  f.innerHTML = `<span class="big">${esc(ch)}</span><span class="meta"><code>${esc(name)}</code><span>U+${ch.codePointAt(0).toString(16).toUpperCase()}</span></span>`;
+}
+function gpRender() { const b = document.getElementById("gp-body"); if (b) { b.innerHTML = gpResults(); b.scrollTop = 0; } }
+function glyphPop(anchor, targetId) {
+  openPop(anchor, `<div class="gp-head"><input id="gp-q" type="search" placeholder="Search icons and symbols: git, folder, arrow, check…" autocomplete="off" value="${esc(gpState.q)}" aria-label="Search Nerd Font icons">
+    <div class="gp-sets">${GP_SETS.map(([k, l]) => `<button data-gp-set="${k}" aria-pressed="${gpState.set === k}">${l}</button>`).join("")}</div></div>
+    <div class="gp-body" id="gp-body"></div><div class="gp-foot" id="gp-foot"></div>`, { kind: "glyph", id: targetId }, "gp");
+  gpRender(); gpFoot();
+  const q = document.getElementById("gp-q"); q.focus(); q.select();
+}
+function colorPop(anchor, key, which) {
+  const T = curTheme();
+  const names = [...ANSI, ...ANSI.map(a => "bright-" + a)];
+  const pal = activePalette();
+  const sw = (val, hex, label) => `<button data-color="${esc(val)}" data-cname="${esc(label)}" data-hex="${esc(hex || "")}" title="${esc(label)}"><span style="background:${hex || "transparent"}"></span></button>`;
+  let h = `<h4>${esc(themeLabel(view.theme))} terminal colors</h4><div class="grid sws">${names.map((nm, k) => sw(nm, T.c[k], nm)).join("")}</div>`;
+  if (T.base) {
+    const keys = Object.keys(T.base);
+    const usesPal = pal && keys.every(k => k in pal);
+    h += `<h4>${T.sys === "base24" ? "Base24" : "Base16"} colors</h4><div class="grid sws">${keys.map(k => sw(usesPal ? k : T.base[k], T.base[k], k)).join("")}</div>`;
+    if (!usesPal) h += `<div class="row"><button class="btn small" data-act="theme-palette">Use as Starship palette</button><span class="hint">Base colors then go in by name.</span></div>`;
+  }
+  if (pal) h += `<h4>Palette “${esc(state.top.palette)}”</h4><div class="grid sws">${Object.keys(pal).filter(nm => !T.base || !(nm in T.base) || !Object.keys(T.base).every(k => k in pal)).map(nm => sw(nm, resolveColor(nm), nm)).join("")}</div>`;
+  h += `<details class="more" style="margin-top:8px"><summary>All 256 colors</summary><div class="grid sws x256">${Array.from({ length: 240 }, (_, i) => sw(String(i + 16), x256(i + 16), String(i + 16))).join("")}</div></details>`;
+  h += `<div class="row"><input type="color" id="pop-hex" value="${resolveColor((parseStyle(currentStyle(key)) || {})[which]) || "#9a348e"}" aria-label="Custom color"><button class="btn small" data-color-hex="1">Use hex</button><button class="btn small ghost" data-color="">None</button></div>`;
+  h += `<div class="cp-foot" id="cp-foot"><span class="hint">Named colors follow your real terminal's theme. Hex and 256-color numbers stay fixed.</span></div>`;
+  openPop(anchor, h, { kind: "color", key, which }, "cp");
+}
+function themePalette() {
+  const T = curTheme(); if (!T.base) return;
+  const name = (T.sys || "base16") + "_" + themeLabel(view.theme).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  commit();
+  state.extra.palettes = Object.assign({}, state.extra.palettes, { [name]: Object.assign({}, T.base) });
+  state.top.palette = name;
+  afterChange(true); toast(`Added palette ${name}. Styles can now use names like base0D.`);
+}
+function currentStyle(key) {
+  if (key === "__text") { const f = findItem(sel); return f ? f.it.style : ""; }
+  const f = findItem(sel); return f ? String(cfg(f.it.name)[key] ?? "") : "";
+}
+function writeStyle(key, val) {
+  const f = findItem(sel); if (!f) return; commit();
+  if (key === "__text") f.it.style = val; else setOpt(f.it.name, key, val);
+  afterChange(true);
+}
+function styleTokens(s) { return String(s || "").trim().split(/\s+/).filter(Boolean); }
+function setStyleColor(s, which, color) {
+  const mods = ["bold", "italic", "underline", "dimmed", "inverted", "blink", "hidden", "strikethrough", "none"];
+  const toks = styleTokens(s).filter(t => { const l = t.toLowerCase(); if (which === "bg") return !l.startsWith("bg:"); return !(l.startsWith("fg:") || (!l.startsWith("bg:") && !mods.includes(l))); });
+  if (color) toks.push(which + ":" + color);
+  return toks.join(" ");
+}
+function toggleStyleMod(s, m) { const toks = styleTokens(s); const i = toks.findIndex(t => t.toLowerCase() === m); if (i >= 0) toks.splice(i, 1); else toks.unshift(m); return toks.join(" "); }
+
+/* ---------- events ---------- */
+let dragging = false, justDragged = 0;
+document.addEventListener("click", e => {
+  const t = e.target;
+  if (!pop.hidden && !pop.contains(t) && !t.closest("[data-act=pick-glyph],[data-act=pick-color]")) closePop();
+  const g = t.closest("[data-glyph]");
+  const setBtn = t.closest("[data-gp-set]");
+  if (setBtn) { gpState.set = setBtn.dataset.gpSet; pop.querySelectorAll("[data-gp-set]").forEach(b => b.setAttribute("aria-pressed", b === setBtn)); gpRender(); return; }
+  if (g && popTarget && popTarget.kind === "glyph") {
+    rememberGlyph(g.dataset.glyph);
+    if (!popTarget.id) {
+      const ch = g.dataset.glyph;
+      try { navigator.clipboard.writeText(ch).then(() => toast(`Copied ${g.dataset.gname || "icon"}`), () => toast(`Couldn't copy. The icon is ${g.dataset.gname}.`)); } catch (err) { toast(`Couldn't copy. The icon is ${g.dataset.gname}.`); }
+      return;
+    }
+    const inp = document.getElementById(popTarget.id);
+    if (inp) {
+      // With no caret placed, swap the field's existing icon for the new one; otherwise insert at the caret
+      const touched = inp.dataset.touched === "1"; const icon = /[^\x00-\x7f\s]+/u.exec(inp.value);
+      let a = inp.value.length, b = a;
+      if (touched) { a = inp.selectionStart ?? a; b = inp.selectionEnd ?? a; } else if (icon) { a = icon.index; b = icon.index + icon[0].length; } inp.value = inp.value.slice(0, a) + g.dataset.glyph + inp.value.slice(b); inp.dispatchEvent(new Event("input", { bubbles: true })); inp.focus(); const p = a + g.dataset.glyph.length; inp.setSelectionRange(p, p); inp.dataset.touched = "1"; }
+    if (e.shiftKey) { const keep = popTarget; gpFoot(g.dataset.glyph, g.dataset.gname); popTarget = keep; return; }
+    closePop(); return;
+  }
+  const col = t.closest("[data-color],[data-color-hex]");
+  if (col && popTarget && popTarget.kind === "color") {
+    const c = col.dataset.colorHex ? document.getElementById("pop-hex").value : col.dataset.color;
+    writeStyle(popTarget.key, setStyleColor(currentStyle(popTarget.key), popTarget.which, c)); closePop(); return;
+  }
+  const scenBtn = t.closest("[data-scen]");
+  if (scenBtn) { const k = scenBtn.dataset.scen; scen[k] = !scen[k]; if (k === "dirty" && scen.dirty) scen.git = true; if (k === "git" && !scen.git) scen.dirty = false; renderScen(); afterChange(true); return; }
+  const chip = t.closest(".chip[data-id]");
+  if (chip && chip.closest(".lane")) { if (Date.now() - justDragged < 250) return; sel = chip.dataset.id; renderLanes(); renderInspector(); return; }
+  const actEl = t.closest("[data-act]");
+  if (actEl) {
+    const act = actEl.dataset.act; const f = sel ? findItem(sel) : null;
+    switch (act) {
+      case "add-mod": if (Date.now() - justDragged < 250) return; insertItem({ id: nid(), t: "mod", name: actEl.dataset.mod }, "left", smartIndex("left")); return;
+      case "add-block": if (Date.now() - justDragged < 250) return; insertItem(newItemFromBlock(BLOCKS[+actEl.dataset.block]), "left", smartIndex("left")); return;
+      case "deselect": sel = null; renderLanes(); renderInspector(); return;
+      case "move": if (f) moveItem(f.it.id, +actEl.dataset.d); return;
+      case "swap-lane": if (f) { commit(); state[f.lane].splice(f.i, 1); const to = f.lane === "left" ? "right" : "left"; state[to].push(f.it); afterChange(true); } return;
+      case "dup": if (f) { commit(); const c = clone(f.it); c.id = nid(); state[f.lane].splice(f.i + 1, 0, c); sel = c.id; afterChange(true); } return;
+      case "remove": if (f) removeItem(f.it.id); return;
+      case "enable": if (f) { commit(); setOpt(f.it.name, "disabled", false); afterChange(true); } return;
+      case "reset-opt": if (f) { commit(); setOpt(f.it.name, actEl.dataset.key, undefined); afterChange(true); } return;
+      case "reset-sub": if (f) { commit(); setSub(f.it.name, "symbols", scen.distro, undefined); afterChange(true); } return;
+      case "set-text": if (f && f.it.t === "text") { commit(); f.it.text = actEl.dataset.text; afterChange(true); } return;
+      case "fit": if (f) { commit(); fitNeighbors(f.it.id); afterChange(true); } return;
+      case "pick-glyph": glyphPop(actEl, actEl.dataset.target); return;
+      case "pick-color": colorPop(actEl, actEl.dataset.key, actEl.dataset.which); return;
+      case "theme-palette": closePop(); themePalette(); return;
+      case "toggle-mod": writeStyle(actEl.dataset.key, toggleStyleMod(currentStyle(actEl.dataset.key), actEl.dataset.mod)); return;
+    }
+  }
+});
+document.addEventListener("input", e => {
+  const t = e.target; const f = sel ? findItem(sel) : null;
+  if (t.id === "q") { renderShelf(); return; }
+  if (t.id === "gp-q") { gpState.q = t.value; gpRender(); return; }
+  if (!f) return;
+  if (t.dataset.opt) {
+    let v = t.value;
+    if (t.dataset.type === "bool") v = t.checked; else if (t.dataset.type === "num") { if (t.value === "") return; v = Number(t.value); }
+    commit("opt:" + f.it.id + t.dataset.opt); setOpt(f.it.name, t.dataset.opt, v);
+    if (t.dataset.type === "bool" || t.dataset.opt === "disabled") { afterChange(true); return; }
+  } else if (t.dataset.sub) { commit("sub:" + f.it.id); setSub(f.it.name, t.dataset.sub, t.dataset.subkey, t.value); }
+  else if (t.dataset.item) { commit("item:" + f.it.id + t.dataset.item); f.it[t.dataset.item] = t.value; }
+  else return;
+  afterChange(false);
+  // refresh style swatches without losing focus
+  if (t.dataset.opt && isStyleKey(t.dataset.opt) || t.dataset.item === "style") {
+    const key = t.dataset.item === "style" ? "__text" : t.dataset.opt;
+    const ed = document.querySelector(`.style-ed[data-style-key="${CSS.escape(key)}"]`);
+    if (ed) ed.outerHTML = styleEditor(key, t.value);
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "distro" || t.id === "shell" || t.id === "project") { scen[t.id] = t.value; afterChange(true); return; }
+  if (t.id === "theme") { view.theme = t.value; document.getElementById("theme-remove").hidden = !view.theme.startsWith("imp:"); afterChange(true); return; }
+  if (t.id === "theme-file" && t.files[0]) { const fl = t.files[0]; const r = new FileReader(); r.onload = () => { document.getElementById("theme-src").value = r.result; const nm = document.getElementById("theme-name"); if (!nm.value) nm.value = fl.name.replace(/\.[^.]+$/, ""); doThemeImport(); }; r.readAsText(fl); t.value = ""; return; }
+  if (t.id === "font") { view.font = t.value; afterChange(false); updateFontNote(); return; }
+  if (t.id === "nf") { commit(); state.nf = t.checked; afterChange(true); return; }
+  if (t.id === "preset" && t.value) { loadPreset(t.value); t.value = ""; return; }
+  if (t.id === "import-file" && t.files[0]) { const r = new FileReader(); r.onload = () => { document.getElementById("import-src").value = r.result; doImport(); }; r.readAsText(t.files[0]); t.value = ""; }
+});
+pop.addEventListener("mouseover", e => { const g = e.target.closest("[data-glyph]"); if (g) gpFoot(g.dataset.glyph, g.dataset.gname); const c = e.target.closest("[data-cname]"); if (c) cpFoot(c); });
+function cpFoot(c) { const f = document.getElementById("cp-foot"); if (!f) return; f.innerHTML = `<span class="big" style="background:${c.dataset.hex || "transparent"}"></span><span class="meta"><code>${esc(c.dataset.color)}</code><span>${esc(c.dataset.hex || "")}${c.dataset.cname !== c.dataset.color ? " · " + esc(c.dataset.cname) : ""}</span></span>`; }
+pop.addEventListener("focusin", e => { const g = e.target.closest("[data-glyph]"); if (g) gpFoot(g.dataset.glyph, g.dataset.gname); });
+document.addEventListener("focusin", e => { if (e.target.matches && e.target.matches("input.inp")) e.target.dataset.touched = "1"; });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !pop.hidden) { const back = popTarget && popTarget.id && document.getElementById(popTarget.id); closePop(); back && back.focus(); return; }
+  if (e.key === "Enter" && e.target.id === "gp-q") { e.preventDefault(); const first = pop.querySelector("[data-glyph]"); first && first.click(); return; }
+  const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !inField) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y" && !inField) { e.preventDefault(); redo(); return; }
+  const chip = e.target.closest && e.target.closest(".lane .chip[data-id]");
+  if (chip) {
+    const id = chip.dataset.id;
+    if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); const f = findItem(id); const next = f && (state[f.lane][f.i + 1] || state[f.lane][f.i - 1]); removeItem(id); if (next) { sel = next.id; renderLanes(); renderInspector(); focusChip(next.id); } return; }
+    if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); sel = id; moveItem(id, e.key === "ArrowLeft" ? -1 : 1); renderInspector(); return; }
+  }
+  const pal = e.target.closest && e.target.closest(".pal");
+  if (pal && e.key === "Enter" && e.target === pal) { e.preventDefault(); pal.querySelector(".add").click(); }
+});
+document.getElementById("undo").onclick = undo;
+document.getElementById("redo").onclick = redo;
+document.getElementById("copy").onclick = () => {
+  const done = () => toast("Copied. Paste it into ~/.config/starship.toml");
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("toml")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Press Ctrl+C to copy."); };
+  try { navigator.clipboard.writeText(tomlText).then(done, fallback); } catch (err) { fallback(); }
+};
+document.getElementById("import-toggle").onclick = () => { const p = document.getElementById("import"); p.hidden = !p.hidden; if (!p.hidden) document.getElementById("import-src").focus(); };
+document.getElementById("import-go").onclick = doImport;
+document.getElementById("theme-import-toggle").onclick = () => { const p = document.getElementById("theme-import"); p.hidden = !p.hidden; if (!p.hidden) document.getElementById("theme-src").focus(); };
+document.getElementById("theme-go").onclick = doThemeImport;
+document.getElementById("theme-remove").onclick = () => {
+  const k = view.theme; if (!k.startsWith("imp:")) return;
+  const all = importedThemes(); delete all[k.slice(4)]; saveImportedThemes(all); delete THEMES[k];
+  view.theme = "Catppuccin Mocha"; renderThemeSelect(); afterChange(true); toast(`Removed ${themeLabel(k)}.`);
+};
+function doThemeImport() {
+  const err = document.getElementById("theme-err");
+  try {
+    const src = document.getElementById("theme-src").value;
+    const t = parseTermTheme(src);
+    const nameIn = document.getElementById("theme-name").value.trim();
+    const nm = nameIn || (/^\s*name\s*[:=]\s*["']?([^"'\n]+)/m.exec(src) || [])[1] || "Imported theme";
+    const all = importedThemes(); all[nm] = t; saveImportedThemes(all);
+    THEMES["imp:" + nm] = t; view.theme = "imp:" + nm; err.textContent = "";
+    document.getElementById("theme-import").hidden = true; document.getElementById("theme-src").value = ""; document.getElementById("theme-name").value = "";
+    renderThemeSelect(); afterChange(true); toast(`Previewing with ${nm}.`);
+  } catch (ex) { err.textContent = "Couldn't read that theme: " + ex.message; }
+}
+function doImport() {
+  const src = document.getElementById("import-src").value; const err = document.getElementById("import-err");
+  try {
+    const obj = parseTOML(src); commit(); state = applyConfig(obj); sel = null; err.textContent = "";
+    document.getElementById("import").hidden = true; afterChange(true);
+    toast(`Loaded ${state.left.length + state.right.length} prompt items and ${Object.keys(state.mods).length} module tables.`);
+  } catch (ex) { err.textContent = "Couldn't read that TOML. " + ex.message; }
+}
+function loadPreset(name) {
+  commit();
+  if (name === "__starter") state = starterState(); else { state = applyConfig(parseTOML(PRESETS[name])); }
+  sel = null; afterChange(true); toast(`Loaded “${name === "__starter" ? "Two-line starter" : name}”.`);
+}
+
+/* ---------- lanes: drag and drop ---------- */
+// Position of a dropped element among the chips of its new lane
+function chipIndex(el) { let n = 0; for (let p = el.previousElementSibling; p; p = p.previousElementSibling) if (p.matches(".chip[data-id]")) n++; return n; }
+function laneSortable(el) {
+  Sortable.create(el, {
+    group: { name: "prompt", pull: true, put: true }, draggable: ".chip", animation: 140,
+    onStart: () => { dragging = true; document.getElementById("trash").hidden = false; },
+    onEnd: evt => {
+      dragging = false; justDragged = Date.now(); document.getElementById("trash").hidden = true;
+      const from = evt.from.dataset.lane, to = evt.to.dataset.lane; const id = evt.item.dataset.id;
+      const f = findItem(id); if (!f) { renderLanes(); return; }
+      if (evt.to.id === "trash") { evt.item.remove(); removeItem(id); return; }
+      if (!to || (from === to && evt.oldDraggableIndex === evt.newDraggableIndex)) { renderLanes(); return; }
+      const ni = chipIndex(evt.item);
+      commit(); state[from].splice(f.i, 1); state[to].splice(ni, 0, f.it); sel = id; afterChange(true);
+    },
+  });
+}
+
+/* ---------- init ---------- */
+const NF_GLYPHS = (() => { const set = new Set(); const add = s => { for (const ch of String(s)) { const c = ch.codePointAt(0); if ((c >= 0xe000 && c <= 0xf8ff) || c >= 0xf0000) set.add(ch); } }; for (const n in M) { const nf = M[n].nf; if (nf) for (const k in nf) k === "symbols" ? Object.values(nf.symbols).forEach(add) : add(nf[k]); } CURATED.forEach(c => set.delete(c)); return [...set]; })();
+function starterState() {
+  const mk = names => names.map(n => ({ id: nid(), t: "mod", name: n }));
+  return { left: mk(["os", "username", "hostname", "directory", "git_branch", "git_status", "nodejs", "python", "rust", "golang", "line_break", "character"]), right: mk(["cmd_duration", "time"]), mods: { os: { disabled: false }, time: { disabled: false, time_format: "%R" } }, top: {}, extra: {}, nf: true };
+}
+function updateFontNote() {
+  const note = document.getElementById("fontnote");
+  let has = false;
+  try {
+    const cv = document.createElement("canvas").getContext("2d"); const txt = "mmmmmmmmmlli0O";
+    for (const fam of ["FantasqueSansM Nerd Font Propo", "FantasqueSansM Nerd Font", "FantasqueSansM Nerd Font Mono", "Fantasque Sans Mono"]) {
+      cv.font = `32px monospace`; const a = cv.measureText(txt).width; cv.font = `32px "${fam}", monospace`; const b = cv.measureText(txt).width;
+      cv.font = `32px serif`; const c2 = cv.measureText(txt).width; cv.font = `32px "${fam}", serif`; const d = cv.measureText(txt).width;
+      if (a !== b || c2 !== d) { has = fam; break; }
+    }
+  } catch (e) {}
+  note.textContent = view.font === "bundled" ? "Preview font: JetBrains Mono with bundled Nerd Font symbols."
+    : has ? `Preview font: your installed ${has}.` : "FantasqueSansM Nerd Font isn't installed on this device, so the preview uses JetBrains Mono with bundled Nerd Font symbols.";
+}
+function init() {
+  const sel1 = document.getElementById("preset");
+  sel1.insertAdjacentHTML("beforeend", `<option value="__starter">Two-line starter</option>` + Object.keys(PRESETS).map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join(""));
+  registerBaseThemes();
+  for (const [nm, t] of Object.entries(importedThemes())) if (t && Array.isArray(t.c) && t.c.length === 16) THEMES["imp:" + nm] = t;
+  let saved = null; try { saved = JSON.parse(localStorage.getItem("spb:v1") || "null"); } catch (e) {}
+  if (saved && saved.state && Array.isArray(saved.state.left)) {
+    state = saved.state; Object.assign(scen, saved.scen || {}); Object.assign(view, saved.view || {});
+    if (!THEMES[view.theme]) view.theme = "Catppuccin Mocha";
+    for (const it of [...state.left, ...state.right]) { const k = +String(it.id).slice(1); if (k >= uid) uid = k + 1; }
+  } else state = starterState();
+  renderThemeSelect();
+  document.getElementById("font").value = view.font;
+  renderScen();
+  laneSortable(document.getElementById("lane-left"));
+  laneSortable(document.getElementById("lane-right"));
+  Sortable.create(document.getElementById("trash"), { group: { name: "prompt", pull: false, put: true }, draggable: ".chip" });
+  afterChange(true);
+  updateFontNote();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { updateFontNote(); renderPreview(); });
+  setInterval(() => { if (!dragging && cfgUses("time")) renderPreview(); }, 30000);
+}
+const cfgUses = n => referencedNames().has(n);
+if (window.Sortable) init();
+else document.getElementById("shelf").innerHTML = `<p class="err" style="padding:8px">The drag-and-drop library didn't load. Reload the page to try again.</p>`;
+</script>

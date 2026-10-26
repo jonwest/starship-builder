@@ -1,0 +1,25 @@
+# Minimal: path, branch and a lambda. Duration on the right.
+add_newline = false
+format = "$directory$git_branch$git_status$character"
+right_format = "$cmd_duration"
+
+[directory]
+style = "bold blue"
+truncation_length = 2
+truncation_symbol = "…/"
+
+[git_branch]
+format = "[$branch]($style) "
+style = "bright-black"
+
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "cyan"
+
+[character]
+success_symbol = "[λ](bold purple)"
+error_symbol = "[λ](bold red)"
+
+[cmd_duration]
+format = "[$duration]($style)"
+style = "yellow"
